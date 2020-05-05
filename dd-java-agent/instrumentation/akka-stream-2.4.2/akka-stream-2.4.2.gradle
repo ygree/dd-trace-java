@@ -54,13 +54,8 @@ testSets {
 //}
 
 dependencies {
+  // 2.4.2 is the first version of akka with akka-stream
   main_java8CompileOnly group: 'com.typesafe.akka', name: 'akka-stream_2.11', version: '2.4.2'
-
-  compile project(':dd-trace-api')
-  compile project(':dd-java-agent:agent-tooling')
-  compile deps.opentracing
-  compile deps.autoservice
-  annotationProcessor deps.autoservice
 
   testCompile group: 'com.typesafe.akka', name: 'akka-stream_2.11', version: '2.4.2'
   testCompile project(':dd-java-agent:instrumentation:java-concurrent')
