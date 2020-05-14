@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
 
   static PendingTrace create(final CoreTracer tracer, final BigInteger traceId) {
-    PendingTrace pendingTrace = new PendingTrace(tracer, traceId);
+    final PendingTrace pendingTrace = new PendingTrace(tracer, traceId);
     pendingTrace.addPendingTrace();
     return pendingTrace;
   }
@@ -114,6 +114,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
         weakReferences.add(span.ref);
         final int count = pendingReferenceCount.incrementAndGet();
         log.debug("traceId: {} -- registered span {}. count = {}", traceId, span, count);
+        printStackTrace();
       } else {
         log.debug("span {} already registered in trace {}", span, traceId);
       }
@@ -183,6 +184,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
         final int count = pendingReferenceCount.incrementAndGet();
         log.debug(
             "traceId: {} -- registered continuation {}. count = {}", traceId, continuation, count);
+        printStackTrace();
       } else {
         log.debug("continuation {} already registered in trace {}", continuation, traceId);
       }
@@ -194,6 +196,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
       if (continuation.ref == null) {
         log.debug("continuation {} not registered in trace {}", continuation, traceId);
       } else {
+        log.debug("continuation {} cancelled in trace {}", continuation, traceId);
         weakReferences.remove(continuation.ref);
         continuation.ref.clear();
         continuation.ref = null;
@@ -228,6 +231,16 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
       }
     }
     log.debug("traceId: {} -- Expired reference. count = {}", traceId, count);
+    printStackTrace();
+  }
+
+  private static void printStackTrace() {
+    final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+    final StringBuilder stackTraceString = new StringBuilder("StackTrace");
+    for (int i = 3; i < Math.min(stackTrace.length - 3, 10); i++) {
+      stackTraceString.append("\n").append("\t").append(stackTrace[i].toString());
+    }
+    log.debug(stackTraceString.toString());
   }
 
   private synchronized void write() {

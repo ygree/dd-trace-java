@@ -58,9 +58,8 @@ public class ExecutorInstrumentationUtils {
     final State state = contextStore.putIfAbsent(task, State.FACTORY);
 
     final TraceScope.Continuation continuation = scope.capture();
-    if (state.setContinuation(continuation)) {
-      log.debug("created continuation {} from scope {}, state: {}", continuation, scope, state);
-    } else {
+    log.debug("created continuation {} from scope {}, state: {}", continuation, scope, state);
+    if (!state.setContinuation(continuation)) {
       continuation.cancel();
     }
 

@@ -42,6 +42,15 @@ public class ContinuableScope implements DDScope {
     this(scopeManager, null, spanUnderScope, eventFactory);
   }
 
+  private static void printStackTrace() {
+    final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+    final StringBuilder stackTraceString = new StringBuilder("StackTrace");
+    for (int i = 0; i < Math.min(stackTrace.length - 2, 15); i++) {
+      stackTraceString.append("\n").append("\t").append(stackTrace[i + 2].toString());
+    }
+    log.debug(stackTraceString.toString());
+  }
+
   private ContinuableScope(
       final ContextualScopeManager scopeManager,
       final Continuation continuation,
@@ -60,6 +69,7 @@ public class ContinuableScope implements DDScope {
     for (final ScopeListener listener : scopeManager.scopeListeners) {
       listener.afterScopeActivated();
     }
+    printStackTrace();
   }
 
   @Override
@@ -177,7 +187,8 @@ public class ContinuableScope implements DDScope {
         return scope;
       } else {
         log.debug(
-            "Failed to activate continuation. Reusing a continuation not allowed.  Returning a new scope. Spans may be reported separately.");
+            "Failed to activate continuation {}. Reusing a continuation not allowed.  Returning a new scope. Spans may be reported separately.",
+            this);
         return new ContinuableScope(scopeManager, null, spanUnderScope, eventFactory);
       }
     }
