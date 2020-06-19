@@ -3,7 +3,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.ExceptionHandler
+import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.stream.ActorMaterializer
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
 
@@ -39,7 +39,7 @@ object AkkaHttpTestWebServer {
   def start(port: Int): Unit = synchronized {
     if (null == binding) {
       import scala.concurrent.duration._
-      binding = Await.result(Http().bindAndHandle(route, "localhost", port), 10 seconds)
+      binding = Await.result(Http().bindAndHandle(Route.handlerFlow(route), "localhost", port), 10 seconds)
     }
   }
 
