@@ -4,7 +4,6 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
-import spock.lang.Ignore
 import spock.lang.Retry
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -86,7 +85,6 @@ class AkkaHttpServerInstrumentationTestSync extends AbstractAkkaHttpServerInstru
   }
 }
 
-@Ignore
 @Retry
 class AkkaHttpServerInstrumentationTestAsync extends AbstractAkkaHttpServerInstrumentationTest {
   @Override

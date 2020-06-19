@@ -11,12 +11,9 @@ import groovy.lang.Closure
 
 import scala.concurrent.Await
 
-// FIXME: This doesn't work because we don't support bindAndHandle.
 object AkkaHttpTestWebServer {
   implicit val system = ActorSystem("my-system")
   implicit val materializer = ActorMaterializer()
-  // needed for the future flatMap/onComplete in the end
-  implicit val executionContext = system.dispatcher
 
   val exceptionHandler = ExceptionHandler {
     case ex: Exception => complete(HttpResponse(status = EXCEPTION.getStatus).withEntity(ex.getMessage))
