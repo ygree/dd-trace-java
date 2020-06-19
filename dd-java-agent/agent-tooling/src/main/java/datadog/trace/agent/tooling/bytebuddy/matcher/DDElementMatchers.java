@@ -4,10 +4,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isInterface;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.matcher.NameMatcher;
 
 /**
  * This class provides some custom ByteBuddy element matchers to use when applying instrumentation
@@ -55,6 +57,19 @@ public class DDElementMatchers {
   public static <T> ElementMatcher.Junction<T> failSafe(
       final ElementMatcher<? super T> matcher, final String description) {
     return new LoggingFailSafeMatcher<>(matcher, false, description);
+  }
+
+  /**
+   * Matches any named element with a "package" matching the given prefixes, where package is
+   * delimited by a period.
+   *
+   * @param packagePrefixes The list of package prefixes this matcher will allow.
+   * @param <T> The type of the matched object.
+   * @return A matcher that matches any named element with a package matching the given prefixes.
+   */
+  public static <T extends NamedElement> ElementMatcher.Junction<T> packageMatchesPrefix(
+      final String... packagePrefixes) {
+    return new NameMatcher<>(new TriePackagePrefixMatcher(packagePrefixes));
   }
 
   static String safeTypeDefinitionName(final TypeDefinition td) {
