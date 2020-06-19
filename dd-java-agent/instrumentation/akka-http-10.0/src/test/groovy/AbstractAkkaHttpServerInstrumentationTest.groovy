@@ -9,7 +9,7 @@ import spock.lang.Retry
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object> {
+abstract class AbstractAkkaHttpServerInstrumentationTest extends HttpServerTest<Object> {
 
   @Override
   String component() {
@@ -25,17 +25,6 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object> 
   boolean testExceptionBody() {
     false
   }
-
-// FIXME: This doesn't work because we don't support bindAndHandle.
-//  @Override
-//  def startServer(int port) {
-//    AkkaHttpTestWebServer.start(port)
-//  }
-//
-//  @Override
-//  void stopServer(Object ignore) {
-//    AkkaHttpTestWebServer.stop()
-//  }
 
   void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
     trace.span(index) {
@@ -71,7 +60,20 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object> 
 }
 
 @Retry
-class AkkaHttpServerInstrumentationTestSync extends AkkaHttpServerInstrumentationTest {
+class AkkaHttpServerInstrumentationTest extends AbstractAkkaHttpServerInstrumentationTest {
+  @Override
+  def startServer(int port) {
+    AkkaHttpTestWebServer.start(port)
+  }
+
+  @Override
+  void stopServer(Object ignore) {
+    AkkaHttpTestWebServer.stop()
+  }
+}
+
+@Retry
+class AkkaHttpServerInstrumentationTestSync extends AbstractAkkaHttpServerInstrumentationTest {
   @Override
   def startServer(int port) {
     AkkaHttpTestSyncWebServer.start(port)
@@ -84,7 +86,7 @@ class AkkaHttpServerInstrumentationTestSync extends AkkaHttpServerInstrumentatio
 }
 
 @Retry
-class AkkaHttpServerInstrumentationTestAsync extends AkkaHttpServerInstrumentationTest {
+class AkkaHttpServerInstrumentationTestAsync extends AbstractAkkaHttpServerInstrumentationTest {
   @Override
   def startServer(int port) {
     AkkaHttpTestAsyncWebServer.start(port)
