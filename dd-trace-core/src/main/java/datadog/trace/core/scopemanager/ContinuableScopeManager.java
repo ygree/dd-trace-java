@@ -10,6 +10,7 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -119,6 +120,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
       if (tlsScope.get() != this) {
         log.debug("Tried to close {} scope when {} is on top. Ignoring!", this, tlsScope.get());
+        log.debug(Arrays.toString(Thread.currentThread().getStackTrace()));
         return;
       }
 
@@ -199,6 +201,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       if (used.compareAndSet(false, true)) {
         final AgentScope scope = handleSpan(this, spanUnderScope);
         log.debug("t_id={} -> activating continuation {}", spanUnderScope.getTraceId(), this);
+        log.debug(Arrays.toString(Thread.currentThread().getStackTrace()));
         return scope;
       } else {
         log.debug(

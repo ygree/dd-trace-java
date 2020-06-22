@@ -5,6 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.context.TraceScope;
+import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -59,14 +61,38 @@ public class ExecutorInstrumentationUtils {
 
     final TraceScope.Continuation continuation = scope.capture();
     if (state.setContinuation(continuation)) {
-      if (log.isDebugEnabled()) {
-        log.debug("created continuation {} from scope {}, state: {}", continuation, scope, state);
-      }
+      log.debug(
+          "created continuation for task type: {}, {}",
+          taskClassToString(task.getClass()),
+          Arrays.toString(Arrays.copyOfRange(Thread.currentThread().getStackTrace(), 2, 10)));
+      //      if (log.isDebugEnabled()) {
+      //        log.debug(
+      //            "created continuation {} from scope {}, task type: {} state: {}",
+      //            continuation,
+      //            scope,
+      //            task.getClass(),
+      //            state);
+      //      }
     } else {
+      log.debug(
+          "cancelling continuation for task type: {}, {}",
+          taskClassToString(task.getClass()),
+          Arrays.toString(Arrays.copyOfRange(Thread.currentThread().getStackTrace(), 2, 10)));
       continuation.cancel();
     }
 
     return state;
+  }
+
+  private static String taskClassToString(final Class<?> taskClass) {
+    final StringBuilder builder = new StringBuilder();
+    builder.append(taskClass.toString()).append(" => [");
+    builder.append(" extends ").append(taskClass.getGenericSuperclass().toString());
+    for (final Type t : taskClass.getGenericInterfaces()) {
+      builder.append(" implements ").append(t.toString());
+    }
+    builder.append(" ]");
+    return builder.toString();
   }
 
   /**

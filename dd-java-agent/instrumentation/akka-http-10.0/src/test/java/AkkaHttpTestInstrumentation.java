@@ -1,4 +1,5 @@
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import akka.NotUsed;
@@ -11,6 +12,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.test.base.HttpServerTestAdvice;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.AgentBuilder.Transformer.ForAdvice;
 import net.bytebuddy.asm.Advice;
@@ -50,13 +54,20 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
     public static final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed>
         bidiFlowWrapper = BidiFlow.fromFlows(responseWrapper, requestWrapper);
 
+    private static final Queue<AgentSpan> spans = new ConcurrentLinkedDeque<>();
+
     static HttpRequest handleRequest(final HttpRequest request) {
       HttpServerTestAdvice.ServerEntryAdvice.methodEnter();
+      spans.add(activeSpan());
       return request;
     }
 
     static HttpResponse handleResponse(final HttpResponse response) {
-      HttpServerTestAdvice.ServerEntryAdvice.methodExit((AgentScope) activeScope());
+      final AgentSpan span = spans.poll();
+      if (span != null) {
+        final AgentScope scope = activateSpan(span);
+        HttpServerTestAdvice.ServerEntryAdvice.methodExit(scope);
+      }
       return response;
     }
   }
