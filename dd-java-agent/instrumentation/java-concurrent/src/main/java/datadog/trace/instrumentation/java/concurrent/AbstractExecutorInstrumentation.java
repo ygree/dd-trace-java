@@ -51,7 +51,7 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
         //        "akka.dispatch.Dispatcher$LazyExecutorServiceDelegate",
         //        "akka.dispatch.ExecutionContexts$sameThreadExecutionContext$",
         "akka.dispatch.forkjoin.ForkJoinPool",
-        //        "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinPool",
+        "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinPool",
         //        "akka.dispatch.MessageDispatcher",
         "akka.dispatch.PinnedDispatcher",
         "com.google.common.util.concurrent.AbstractListeningExecutorService",
