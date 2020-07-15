@@ -128,10 +128,10 @@ public class AgentBootstrap {
   private static List<String> getVMArgumentsThroughReflection() {
     try {
       // Try Oracle-based
-      final Class managementFactoryHelperClass =
+      final Class<?> managementFactoryHelperClass =
           thisClass.getClassLoader().loadClass("sun.management.ManagementFactoryHelper");
 
-      final Class vmManagementClass =
+      final Class<?> vmManagementClass =
           thisClass.getClassLoader().loadClass("sun.management.VMManagement");
 
       Object vmManagement;
@@ -151,7 +151,7 @@ public class AgentBootstrap {
 
     } catch (final ReflectiveOperationException e) {
       try { // Try IBM-based.
-        final Class VMClass = thisClass.getClassLoader().loadClass("com.ibm.oti.vm.VM");
+        final Class<?> VMClass = thisClass.getClassLoader().loadClass("com.ibm.oti.vm.VM");
         final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
         return Arrays.asList(argArray);
       } catch (final ReflectiveOperationException e1) {

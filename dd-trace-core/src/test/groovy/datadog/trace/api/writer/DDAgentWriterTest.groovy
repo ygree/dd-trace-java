@@ -1,24 +1,24 @@
 package datadog.trace.api.writer
 
 import com.timgroup.statsd.StatsDClient
+import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.DDAgentWriter
-import datadog.trace.common.writer.ddagent.DDAgentApi 
+import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.Monitor
-import datadog.trace.common.writer.ddagent.MsgPackStatefulSerializer
-import datadog.trace.common.writer.ddagent.TraceBuffer
+import datadog.trace.common.writer.ddagent.TraceMapper
+import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor
 import datadog.trace.core.CoreTracer
-import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
+import datadog.trace.core.serialization.msgpack.Packer
 import datadog.trace.util.test.DDSpecification
-import org.msgpack.core.MessagePack
-import org.msgpack.core.buffer.ArrayBufferOutput
 import spock.lang.Retry
 import spock.lang.Timeout
-import spock.util.concurrent.BlockingVariable
 
+import java.nio.ByteBuffer
 import java.util.concurrent.Phaser
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.common.writer.DDAgentWriter.DISRUPTOR_BUFFER_SIZE
 import static datadog.trace.core.SpanFactory.newSpanOf
-import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITER
 
 @Retry
 @Timeout(10)
@@ -41,7 +40,6 @@ class DDAgentWriterTest extends DDSpecification {
 //      return DDAgentApi.Response.success(200)
 //    }
   }
-  def serializer = Spy(new MsgPackStatefulSerializer())
   def monitor = Mock(Monitor)
 
   def setup() {
@@ -50,38 +48,12 @@ class DDAgentWriterTest extends DDSpecification {
     phaser.register()
   }
 
-  def "test connect early to agent"() {
-    setup:
-    // the call to the api is asynchronous so we need to work around it
-    def buildClientWasCalled = new BlockingVariable(1) // 1 second
-    DDAgentApi apiMock = Mock()
-    apiMock.detectEndpointAndBuildClient() >> {
-      buildClientWasCalled.set(true)
-    }
-    def writer = DDAgentWriter.builder()
-      .agentApi(apiMock)
-      .traceBufferSize(1)
-      .flushFrequencySeconds(120)
-      .serializer(serializer)
-      .build()
-
-    when:
-    writer.start()
-
-    then:
-    buildClientWasCalled.get()
-
-    cleanup:
-    writer.close()
-  }
-
   def "test happy path"() {
     setup:
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .traceBufferSize(2)
       .flushFrequencySeconds(-1)
-      .serializer(serializer)
       .build()
     writer.start()
 
@@ -89,10 +61,6 @@ class DDAgentWriterTest extends DDSpecification {
     writer.flush()
 
     then:
-    _ * serializer.reset(_) >> { trace -> callRealMethod() }
-    _ * serializer.isAtCapacity() >> false
-    _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
     0 * _
 
     when:
@@ -101,14 +69,7 @@ class DDAgentWriterTest extends DDSpecification {
     writer.flush()
 
     then:
-    2 * serializer.serialize(_) >> { trace -> callRealMethod() }
-    _ * serializer.reset(_) >> { trace -> callRealMethod() }
-    _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
-    2 * serializer.isAtCapacity() >> { trace -> callRealMethod() }
-    1 * api.sendSerializedTraces({
-      (it.traceCount() == 2) && (it.headerSize() == 1) && (it.representativeCount() == 2)
-    }) >> DDAgentApi.Response.success(200)
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
+    1 * api.sendSerializedTraces(2, 2, _) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -124,7 +85,6 @@ class DDAgentWriterTest extends DDSpecification {
       .agentApi(api)
       .traceBufferSize(disruptorSize)
       .flushFrequencySeconds(-1)
-      .serializer(serializer)
       .build()
     writer.start()
 
@@ -135,12 +95,7 @@ class DDAgentWriterTest extends DDSpecification {
     writer.flush()
 
     then:
-    _ * serializer.isAtCapacity() >> { trace -> callRealMethod() }
-    _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
-    _ * serializer.serialize(_) >> { trace -> callRealMethod() }
-    _ * serializer.reset(_) >> { trace -> callRealMethod() }
-    1 * api.sendSerializedTraces({ it.traceCount() < traceCount }) >> DDAgentApi.Response.success(200)
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
+    1 * api.sendSerializedTraces({ it <= traceCount }, { it <= traceCount }, _) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -157,7 +112,6 @@ class DDAgentWriterTest extends DDSpecification {
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .monitor(monitor)
-      .serializer(serializer)
       .flushFrequencySeconds(1)
       .build()
     writer.start()
@@ -169,17 +123,13 @@ class DDAgentWriterTest extends DDSpecification {
     phaser.awaitAdvanceInterruptibly(phaser.arriveAndDeregister())
 
     then:
-    _ * serializer.serialize(_) >> { trace -> callRealMethod() }
-    _ * serializer.isAtCapacity() >> { trace -> callRealMethod() }
-    _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
-    _ * serializer.reset(_) >> { trace -> callRealMethod() }
-    1 * api.sendSerializedTraces( { it.traceCount() == 5 }) >> DDAgentApi.Response.success(200)
+
+    1 * monitor.onSerialize(_)
+    1 * api.sendSerializedTraces({it == 5}, { it == 5 }, _) >> DDAgentApi.Response.success(200)
     _ * monitor.onPublish(_, _)
-    _ * monitor.onSerialize(_, _, _)
     1 * monitor.onSend(_, _, _, _) >> {
       phaser.arrive()
     }
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
     0 * _
 
     cleanup:
@@ -196,7 +146,6 @@ class DDAgentWriterTest extends DDSpecification {
       .agentApi(api)
       .traceBufferSize(DISRUPTOR_BUFFER_SIZE)
       .flushFrequencySeconds(-1)
-      .serializer(serializer)
       .build()
     writer.start()
 
@@ -212,8 +161,9 @@ class DDAgentWriterTest extends DDSpecification {
     writer.flush()
 
     then:
-    (maxedPayloadTraceCount + 1) * serializer.serialize(_) >> { trace -> callRealMethod() }
-    1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it == maxedPayloadTraceCount }, { it == maxedPayloadTraceCount }, _) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it == 1 }, { it == 1 }, _) >> DDAgentApi.Response.success(200)
+    0 * _
 
     cleanup:
     writer.close()
@@ -238,8 +188,7 @@ class DDAgentWriterTest extends DDSpecification {
     minimalSpan = new DDSpan(0, minimalContext)
     minimalTrace = [minimalSpan]
     traceSize = calculateSize(minimalTrace)
-    // aim not to *breach* this threshold, so should publish just before it is reached
-    maxedPayloadTraceCount = ((int) (MsgPackStatefulSerializer.DEFAULT_BUFFER_THRESHOLD / traceSize))
+    maxedPayloadTraceCount = ((int) ((TraceProcessingDisruptor.DEFAULT_BUFFER_SIZE - 5) / traceSize))
   }
 
   def "check that are no interactions after close"() {
@@ -247,7 +196,6 @@ class DDAgentWriterTest extends DDSpecification {
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .monitor(monitor)
-      .serializer(serializer)
       .build()
     writer.start()
 
@@ -258,46 +206,12 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
 //    2 * monitor.onFlush(_, false)
-    _ * serializer.reset(_)
-    _ * serializer.dropBuffer()
-    _ * serializer.newBuffer()
     // this will be checked during flushing
-    1 * serializer.isAtCapacity() >> { trace -> callRealMethod() }
     1 * monitor.onFailedPublish(_, _)
     1 * monitor.onFlush(_, _)
     1 * monitor.onShutdown(_, _)
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
     0 * _
     writer.traceCount.get() == 0
-  }
-
-  def "check shutdown if batchWritingDisruptor stopped first"() {
-    setup:
-    def writer = DDAgentWriter.builder()
-      .agentApi(api)
-      .monitor(monitor)
-      .serializer(serializer)
-      .build()
-    writer.start()
-    writer.dispatchingDisruptor.close()
-
-    when:
-    writer.write([])
-    writer.flush()
-
-    then:
-    1 * serializer.serialize(_) >> { trace -> callRealMethod() }
-    1 * serializer.isAtCapacity() >> { trace -> callRealMethod() }
-    _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
-    _ * serializer.reset(_) >> { trace -> callRealMethod() }
-    1 * monitor.onSerialize(writer, _, _)
-    1 * monitor.onPublish(writer, _)
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
-    0 * _
-    writer.traceCount.get() == 0
-
-    cleanup:
-    writer.close()
   }
 
   def createMinimalTrace() {
@@ -349,7 +263,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     1 * monitor.onPublish(writer, minimalTrace)
-    1 * monitor.onSerialize(writer, minimalTrace, _)
+    1 * monitor.onSerialize(_)
     1 * monitor.onFlush(writer, false)
     1 * monitor.onSend(writer, 1, _, { response -> response.success() && response.status() == 200 })
 
@@ -396,7 +310,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     1 * monitor.onPublish(writer, minimalTrace)
-    1 * monitor.onSerialize(writer, minimalTrace, _)
+    1 * monitor.onSerialize(_)
     1 * monitor.onFlush(writer, false)
     1 * monitor.onFailedSend(writer, 1, _, { response -> !response.success() && response.status() == 500 })
 
@@ -415,7 +329,7 @@ class DDAgentWriterTest extends DDSpecification {
     def minimalTrace = createMinimalTrace()
 
     def api = new DDAgentApi("localhost", 8192, null, 1000) {
-      DDAgentApi.Response sendSerializedTraces(TraceBuffer traces) {
+      DDAgentApi.Response sendSerializedTraces(int representativeCount, int traceCount, ByteBuffer traces) {
         // simulating a communication failure to a server
         return DDAgentApi.Response.failed(new IOException("comm error"))
       }
@@ -434,7 +348,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     1 * monitor.onPublish(writer, minimalTrace)
-    1 * monitor.onSerialize(writer, minimalTrace, _)
+    1 * monitor.onSerialize(_)
     1 * monitor.onFlush(writer, false)
     1 * monitor.onFailedSend(writer, 1, _, { response -> !response.success() && response.status() == null })
 
@@ -642,7 +556,7 @@ class DDAgentWriterTest extends DDSpecification {
       numResponses += 1
     }
 
-    def monitor = new Monitor.StatsD(statsd)
+    def monitor = new Monitor(statsd)
     def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitor(monitor).build()
     writer.start()
 
@@ -670,7 +584,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     // DQH -- need to set-up a dummy agent for the final send callback to work
     def api = new DDAgentApi("localhost", 8192, null, 1000) {
-      DDAgentApi.Response sendSerializedTraces(TraceBuffer traces) {
+      DDAgentApi.Response sendSerializedTraces(int traceCount, int representativeCount, ByteBuffer buffer) {
         // simulating a communication failure to a server
         return DDAgentApi.Response.failed(new IOException("comm error"))
       }
@@ -687,7 +601,7 @@ class DDAgentWriterTest extends DDSpecification {
       numErrors += 1
     }
 
-    def monitor = new Monitor.StatsD(statsd)
+    def monitor = new Monitor(statsd)
     def writer = DDAgentWriter.builder().agentApi(api).monitor(monitor).build()
     writer.start()
 
@@ -705,12 +619,16 @@ class DDAgentWriterTest extends DDSpecification {
   }
 
   static int calculateSize(List<DDSpan> trace) {
-    def buffer = new ArrayBufferOutput()
-    def packer = MessagePack.DEFAULT_PACKER_CONFIG
-      .withSmallStringOptimizationThreshold(16)
-      .newPacker(buffer)
-    MSGPACK_WRITER.writeTrace(trace, packer)
+    ByteBuffer buffer = ByteBuffer.allocate(1024)
+    AtomicInteger size = new AtomicInteger()
+    def packer = new Packer(new ByteBufferConsumer() {
+      @Override
+      void accept(int messageCount, ByteBuffer buffy) {
+        size.set(buffy.limit() - buffy.position() - 1)
+      }
+    }, buffer)
+    packer.format(trace, new TraceMapper())
     packer.flush()
-    return buffer.size
+    return size.get()
   }
 }

@@ -36,8 +36,8 @@ public class StringTables {
   // intentionally not thread safe; must be maintained to be effectively immutable
   // if a constant registration API is added, should be ensured that this is only used during
   // startup
-  private static final Map<String, byte[]> UTF8_INTERN_KEYS_TABLE = new HashMap<>(256);
-  private static final Map<String, byte[]> UTF8_INTERN_TAGS_TABLE = new HashMap<>(256);
+  private static final Map<CharSequence, byte[]> UTF8_INTERN_KEYS_TABLE = new HashMap<>(256);
+  private static final Map<CharSequence, byte[]> UTF8_INTERN_TAGS_TABLE = new HashMap<>(256);
   private static final int MAX_TAGS_LENGTH;
   private static final long[] TAGS_FIRST_CHAR_IS_PRESENT = new long[4];
 
@@ -52,21 +52,22 @@ public class StringTables {
     internConstantsUTF8(CommonTagValues.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
     intern(
         UTF8_INTERN_TAGS_TABLE, Config.get().getServiceName(), UTF_8, TAGS_FIRST_CHAR_IS_PRESENT);
+    intern(UTF8_INTERN_TAGS_TABLE, Config.get().getRuntimeId(), UTF_8, TAGS_FIRST_CHAR_IS_PRESENT);
     intern(UTF8_INTERN_KEYS_TABLE, RateByServiceSampler.SAMPLING_AGENT_RATE, UTF_8, null);
     UTF8_INTERN_TAGS_TABLE.put("", new byte[0]);
     MAX_TAGS_LENGTH = maxKeyLength(UTF8_INTERN_TAGS_TABLE.keySet());
   }
 
-  public static byte[] getKeyBytesUTF8(String value) {
+  public static byte[] getKeyBytesUTF8(CharSequence value) {
     return UTF8_INTERN_KEYS_TABLE.get(value);
   }
 
-  public static byte[] getTagBytesUTF8(String value) {
+  public static byte[] getTagBytesUTF8(CharSequence value) {
     return tagMaybeInterned(value) ? UTF8_INTERN_TAGS_TABLE.get(value) : null;
   }
 
   private static void internConstantsUTF8(
-      Class<?> clazz, Map<String, byte[]> map, long[] firstByteBitmap) {
+      Class<?> clazz, Map<CharSequence, byte[]> map, long[] firstByteBitmap) {
     for (Field field : clazz.getDeclaredFields()) {
       if (Modifier.isStatic(field.getModifiers())
           && Modifier.isPublic(field.getModifiers())
@@ -81,7 +82,7 @@ public class StringTables {
   }
 
   private static void intern(
-      Map<String, byte[]> table, String value, Charset encoding, long[] firstByteBitmap) {
+      Map<CharSequence, byte[]> table, String value, Charset encoding, long[] firstByteBitmap) {
     byte[] bytes = value.getBytes(encoding);
     if (null != firstByteBitmap && bytes.length > 0) {
       int bit = bytes[0] & 0xFF;
@@ -90,11 +91,11 @@ public class StringTables {
     table.put(value, bytes);
   }
 
-  private static boolean tagMaybeInterned(final String tag) {
+  private static boolean tagMaybeInterned(final CharSequence tag) {
     if (null == tag || tag.length() > MAX_TAGS_LENGTH) {
       return false;
     }
-    if (!tag.isEmpty()) {
+    if (tag.length() > 0) {
       final char first = tag.charAt(0);
       if (first < 256 // should virtually always be the case
           && (TAGS_FIRST_CHAR_IS_PRESENT[first >>> 6] & (1L << first)) == 0) {
@@ -104,9 +105,9 @@ public class StringTables {
     return true;
   }
 
-  private static int maxKeyLength(final Set<String> keys) {
+  private static int maxKeyLength(final Set<CharSequence> keys) {
     int max = 0;
-    for (String key : keys) {
+    for (CharSequence key : keys) {
       max = Math.max(key.length(), max);
     }
     return max;

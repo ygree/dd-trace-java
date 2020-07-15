@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -69,7 +69,7 @@ public abstract class BaseDecorator {
     if (endToEndDurationsEnabled) {
       if (null == span.getBaggageItem(DDTags.TRACE_START_TIME)) {
         span.setBaggageItem(
-            DDTags.TRACE_START_TIME, Long.toString(MICROSECONDS.toMillis(span.getStartTime())));
+            DDTags.TRACE_START_TIME, Long.toString(NANOSECONDS.toMillis(span.getStartTime())));
       }
     }
     return span;
@@ -173,22 +173,25 @@ public abstract class BaseDecorator {
   }
 
   private static class ClassName {
-    private final String name;
+    private final String className;
     private final ConcurrentHashMap<String, String> methodNames = new ConcurrentHashMap<>(1);
 
-    private ClassName(String name) {
-      this.name = name;
+    private ClassName(String className) {
+      this.className = className;
     }
 
     public String getName() {
-      return name;
+      return className;
     }
 
-    public String getMethodName(String name) {
-      String methodName = methodNames.get(name);
+    public String getMethodName(String method) {
+      String methodName = methodNames.get(method);
       if (null == methodName) {
-        methodName = this.name + "." + name;
-        methodNames.putIfAbsent(name, methodName);
+        methodName = className + "." + method;
+        String prev = methodNames.putIfAbsent(method, methodName);
+        if (null != prev) {
+          methodName = prev;
+        }
       }
       return methodName;
     }

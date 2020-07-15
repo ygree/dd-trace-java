@@ -162,6 +162,7 @@ public class Config {
       TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
   public static final String SPLIT_BY_TAGS = TracerConfig.SPLIT_BY_TAGS;
   public static final String SCOPE_DEPTH_LIMIT = TracerConfig.SCOPE_DEPTH_LIMIT;
+  public static final String SCOPE_STRICT_MODE = TracerConfig.SCOPE_STRICT_MODE;
   public static final String PARTIAL_FLUSH_MIN_SPANS = TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -228,6 +229,9 @@ public class Config {
   public static final String KAFKA_CLIENT_PROPAGATION_ENABLED =
       TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
 
+  public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
+      TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
+
   private static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
   private static final String PROFILING_LOCAL_URL_TEMPLATE = "http://%s:%d/profiling/v1/input";
 
@@ -293,6 +297,7 @@ public class Config {
   @Getter private final boolean dbClientSplitByInstance;
   @Getter private final Set<String> splitByTags;
   @Getter private final Integer scopeDepthLimit;
+  @Getter private final boolean scopeStrictMode;
   @Getter private final Integer partialFlushMinSpans;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
@@ -347,6 +352,10 @@ public class Config {
   @Getter private final int profilingExceptionHistogramMaxCollectionSize;
 
   @Getter private final boolean kafkaClientPropagationEnabled;
+  @Getter private final boolean kafkaClientBase64DecodingEnabled;
+
+  @Getter private final boolean debugEnabled;
+  @Getter private final String configFile;
 
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
@@ -355,6 +364,7 @@ public class Config {
   // Visible for testing
   Config() {
     propertiesFromConfigFile = loadConfigurationFile();
+    configFile = findConfigurationFile();
 
     runtimeId = UUID.randomUUID().toString();
 
@@ -438,6 +448,8 @@ public class Config {
 
     scopeDepthLimit =
         getIntegerSettingFromEnvironment(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
+
+    scopeStrictMode = getBooleanSettingFromEnvironment(SCOPE_STRICT_MODE, false);
 
     partialFlushMinSpans =
         getIntegerSettingFromEnvironment(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
@@ -568,6 +580,11 @@ public class Config {
         getBooleanSettingFromEnvironment(
             KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
 
+    kafkaClientBase64DecodingEnabled =
+        getBooleanSettingFromEnvironment(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+
+    debugEnabled = isDebugMode();
+
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
 
@@ -577,6 +594,8 @@ public class Config {
   // Read order: Properties -> Parent
   private Config(final Properties properties, final Config parent) {
     runtimeId = parent.runtimeId;
+
+    configFile = parent.configFile;
 
     apiKey = properties.getProperty(API_KEY, parent.apiKey);
     site = properties.getProperty(SITE, parent.site);
@@ -647,6 +666,9 @@ public class Config {
 
     scopeDepthLimit =
         getPropertyIntegerValue(properties, SCOPE_DEPTH_LIMIT, parent.scopeDepthLimit);
+
+    scopeStrictMode =
+        getPropertyBooleanValue(properties, SCOPE_STRICT_MODE, parent.scopeStrictMode);
 
     partialFlushMinSpans =
         getPropertyIntegerValue(properties, PARTIAL_FLUSH_MIN_SPANS, parent.partialFlushMinSpans);
@@ -761,6 +783,14 @@ public class Config {
     kafkaClientPropagationEnabled =
         getPropertyBooleanValue(
             properties, KAFKA_CLIENT_PROPAGATION_ENABLED, parent.kafkaClientPropagationEnabled);
+
+    debugEnabled = parent.debugEnabled || isDebugMode();
+
+    kafkaClientBase64DecodingEnabled =
+        getPropertyBooleanValue(
+            properties,
+            KAFKA_CLIENT_BASE64_DECODING_ENABLED,
+            parent.kafkaClientBase64DecodingEnabled);
 
     log.debug("New instance: {}", this);
   }
@@ -951,6 +981,23 @@ public class Config {
   public boolean isTraceAnalyticsIntegrationEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
     return isEnabled(integrationNames, ".analytics.enabled", defaultEnabled);
+  }
+
+  private static boolean isDebugMode() {
+    final String tracerDebugLevelSysprop = "dd.trace.debug";
+    final String tracerDebugLevelProp = System.getProperty(tracerDebugLevelSysprop);
+
+    if (tracerDebugLevelProp != null) {
+      return Boolean.parseBoolean(tracerDebugLevelProp);
+    }
+
+    final String tracerDebugLevelEnv =
+        System.getenv(tracerDebugLevelSysprop.replace('.', '_').toUpperCase());
+
+    if (tracerDebugLevelEnv != null) {
+      return Boolean.parseBoolean(tracerDebugLevelEnv);
+    }
+    return false;
   }
 
   /**
@@ -1427,6 +1474,24 @@ public class Config {
     }
 
     return properties;
+  }
+
+  private static String findConfigurationFile() {
+    String configurationFilePath =
+        System.getProperty(propertyNameToSystemPropertyName(CONFIGURATION_FILE));
+    if (null == configurationFilePath) {
+      configurationFilePath =
+          System.getenv(propertyNameToEnvironmentVariableName(CONFIGURATION_FILE));
+    }
+    if (null != configurationFilePath) {
+      configurationFilePath =
+          configurationFilePath.replaceFirst("^~", System.getProperty("user.home"));
+      final File configurationFile = new File(configurationFilePath);
+      if (!configurationFile.exists()) {
+        return configurationFilePath;
+      }
+    }
+    return "no config file present";
   }
 
   /** Returns the detected hostname. First tries locally, then using DNS */

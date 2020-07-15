@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import java.util.concurrent.ThreadLocalRandom;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Class encapsulating the unsigned 64 bit id used for Trace and Span ids.
@@ -9,6 +10,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * representations. The decimal string representation is either kept from parsing, or generated on
  * demand and cached.
  */
+@Slf4j
 public class DDId {
 
   public static final DDId ZERO = new DDId(0, "0");
@@ -66,8 +68,7 @@ public class DDId {
    * @throws NumberFormatException
    */
   public static DDId fromHex(String s) throws NumberFormatException {
-    long id = parseUnsignedLongHex(s);
-    return DDId.create(id, null);
+    return DDId.create(parseUnsignedLongHex(s), null);
   }
 
   private final long id;

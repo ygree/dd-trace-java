@@ -228,7 +228,7 @@ public class Agent {
     if (AGENT_CLASSLOADER == null) {
       try {
         final ClassLoader agentClassLoader =
-            createDatadogClassLoader("inst", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("inst", bootstrapURL, PARENT_CLASSLOADER);
 
         final Class<?> agentInstallerClass =
             agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
@@ -264,6 +264,28 @@ public class Agent {
   private static synchronized void startJmx(final URL bootstrapURL) {
     startJmxFetch(bootstrapURL);
     initializeJmxThreadCpuTimeProvider();
+    registerDeadlockDetectionEvent(bootstrapURL);
+  }
+
+  private static synchronized void registerDeadlockDetectionEvent(URL bootstrapUrl) {
+    log.info("Initializing JMX thread deadlock detector");
+    try {
+      ClassLoader classLoader = getProfilingClassloader(bootstrapUrl);
+      final Class<?> deadlockFactoryClass =
+          classLoader.loadClass(
+              "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory");
+      final Method registerMethod = deadlockFactoryClass.getMethod("registerEvents");
+      registerMethod.invoke(null);
+    } catch (final Throwable ex) {
+      String msg = "Unable to initialize JMX thread deadlock detector";
+      if (log.isDebugEnabled()) {
+        // in debug level we want to see also the throwable and stacktrace
+        log.info(msg, ex);
+      } else {
+        // in non-debug level do not scare the user with the throwable and stacktrace
+        log.info(msg);
+      }
+    }
   }
 
   /** Enable JMX based thread CPU time provider once it is safe to touch JMX */
@@ -287,7 +309,7 @@ public class Agent {
       final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
       try {
         final ClassLoader jmxFetchClassLoader =
-            createDatadogClassLoader("metrics", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("metrics", bootstrapURL, PARENT_CLASSLOADER);
         Thread.currentThread().setContextClassLoader(jmxFetchClassLoader);
         final Class<?> jmxFetchAgentClass =
             jmxFetchClassLoader.loadClass("datadog.trace.agent.jmxfetch.JMXFetch");
@@ -306,13 +328,10 @@ public class Agent {
       final URL bootstrapURL, final boolean isStartingFirst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
-      if (PROFILING_CLASSLOADER == null) {
-        PROFILING_CLASSLOADER =
-            createDatadogClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
-      }
-      Thread.currentThread().setContextClassLoader(PROFILING_CLASSLOADER);
+      ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
+      Thread.currentThread().setContextClassLoader(classLoader);
       final Class<?> profilingAgentClass =
-          PROFILING_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
+          classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
       final Method profilingInstallerMethod = profilingAgentClass.getMethod("run", Boolean.TYPE);
       profilingInstallerMethod.invoke(null, isStartingFirst);
     } catch (final ClassFormatError e) {
@@ -327,6 +346,15 @@ public class Agent {
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
+  }
+
+  private static synchronized ClassLoader getProfilingClassloader(URL bootstrapURL)
+      throws Exception {
+    if (PROFILING_CLASSLOADER == null) {
+      PROFILING_CLASSLOADER =
+          createDelegateClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
+    }
+    return PROFILING_CLASSLOADER;
   }
 
   private static void configureLogger() {
@@ -365,6 +393,22 @@ public class Agent {
             URL.class, String.class, ClassLoader.class, ClassLoader.class);
     return (ClassLoader)
         constructor.newInstance(bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent);
+  }
+
+  private static ClassLoader createDelegateClassLoader(
+      final String innerJarFilename, final URL bootstrapURL, final ClassLoader parent)
+      throws Exception {
+    final Class<?> loaderClass =
+        ClassLoader.getSystemClassLoader()
+            .loadClass("datadog.trace.bootstrap.DatadogClassLoader$DelegateClassLoader");
+    final Constructor constructor =
+        loaderClass.getDeclaredConstructor(
+            URL.class, String.class, ClassLoader.class, ClassLoader.class, ClassLoader.class);
+    ClassLoader classLoader =
+        (ClassLoader)
+            constructor.newInstance(
+                bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, PARENT_CLASSLOADER);
+    return classLoader;
   }
 
   private static ClassLoader getPlatformClassLoader()
