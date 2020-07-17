@@ -74,9 +74,10 @@ public final class HttpServerLayerInstrumentation extends Instrumenter.Default {
                     HttpRequest,
                     NotUsed>
                 serverLayer) {
-      final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> testSpanFlow =
-          BidiFlow.fromFlows(GraphWrappers.responseWrapper, GraphWrappers.requestWrapper);
-      serverLayer = testSpanFlow.atop(serverLayer);
+      final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed>
+          spanWrappingFlow =
+              BidiFlow.fromFlows(GraphWrappers.responseWrapper, GraphWrappers.requestWrapper);
+      serverLayer = spanWrappingFlow.atop(serverLayer);
     }
   }
 

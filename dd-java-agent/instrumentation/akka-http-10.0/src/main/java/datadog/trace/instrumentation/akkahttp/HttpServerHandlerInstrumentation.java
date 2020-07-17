@@ -143,7 +143,11 @@ public class HttpServerHandlerInstrumentation extends Instrumenter.Default {
       @Override
       public void onPush() throws Exception {
         final HttpRequest request = graphStageLogic.grab(requestIn);
-        pendingSpans.add(AgentTracer.activeSpan());
+        AgentSpan span = AgentTracer.activeSpan();
+        if (span == null) {
+          span = AgentTracer.noopSpan();
+        }
+        pendingSpans.add(span);
         graphStageLogic.push(requestOut, request);
       }
 

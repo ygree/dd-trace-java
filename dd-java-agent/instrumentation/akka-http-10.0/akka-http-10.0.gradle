@@ -89,8 +89,7 @@ dependencies {
   latestDepTestCompile group: 'com.typesafe.akka', name: 'akka-stream_2.11', version: '+'
 }
 
-test.dependsOn lagomTest
-test.dependsOn version101Test
+test.finalizedBy([lagomTest, version101Test])
 
 compileVersion101TestGroovy {
   classpath = classpath.plus(files(compileVersion101TestScala.destinationDir))
