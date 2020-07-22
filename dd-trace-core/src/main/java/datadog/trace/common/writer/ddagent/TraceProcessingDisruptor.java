@@ -11,6 +11,7 @@ import datadog.common.exec.CommonTaskExecutor;
 import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.core.processor.TraceProcessor;
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
 import datadog.trace.core.serialization.msgpack.Packer;
@@ -39,18 +40,22 @@ public class TraceProcessingDisruptor implements AutoCloseable {
   private final DisruptorEvent.HeartbeatTranslator<List<DDSpan>> heartbeatTranslator =
       new DisruptorEvent.HeartbeatTranslator<>();
   private final boolean doHeartbeat;
+  private final TraceProcessor traceProcessor;
 
   private volatile ScheduledFuture<?> heartbeat;
 
   public TraceProcessingDisruptor(
       final int disruptorSize,
+      final TraceHeuristicsEvaluator heuristicsEvaluator,
       final Monitor monitor,
       final DDAgentWriter writer,
       final DDAgentApi api,
       final long flushInterval,
       final TimeUnit timeUnit,
       final boolean heartbeat) {
-    this.disruptor =
+    traceProcessor = new TraceProcessor(heuristicsEvaluator);
+
+    disruptor =
         DisruptorUtils.create(
             new DisruptorEvent.Factory<List<DDSpan>>(),
             disruptorSize,
@@ -60,7 +65,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
             // spend some time doing IO anyway
             new BlockingWaitStrategy());
     disruptor.handleEventsWith(
-        new TraceSerializingHandler(monitor, writer, flushInterval, timeUnit, api));
+        new TraceSerializingHandler(traceProcessor, monitor, writer, flushInterval, timeUnit, api));
     this.dataTranslator = new DisruptorEvent.DataTranslator<>();
     this.flushTranslator = new DisruptorEvent.FlushTranslator<>();
     this.doHeartbeat = heartbeat;
@@ -76,12 +81,12 @@ public class TraceProcessingDisruptor implements AutoCloseable {
     disruptor.start();
   }
 
-  public boolean flush(long timeout, TimeUnit timeUnit) {
-    CountDownLatch latch = new CountDownLatch(1);
+  public boolean flush(final long timeout, final TimeUnit timeUnit) {
+    final CountDownLatch latch = new CountDownLatch(1);
     disruptor.publishEvent(flushTranslator, 0, latch);
     try {
       return latch.await(timeout, timeUnit);
-    } catch (InterruptedException e) {
+    } catch (final InterruptedException e) {
       Thread.currentThread().interrupt();
       return false;
     }
@@ -114,7 +119,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
   public static class TraceSerializingHandler
       implements EventHandler<DisruptorEvent<List<DDSpan>>>, ByteBufferConsumer {
 
-    private final TraceProcessor processor = new TraceProcessor();
+    private final TraceProcessor processor;
     private final Monitor monitor;
     private final DDAgentWriter writer;
     private final long flushIntervalMillis;
@@ -127,20 +132,22 @@ public class TraceProcessingDisruptor implements AutoCloseable {
     private Packer packer;
 
     public TraceSerializingHandler(
+        final TraceProcessor traceProcessor,
         final Monitor monitor,
         final DDAgentWriter writer,
         final long flushInterval,
         final TimeUnit timeUnit,
-        DDAgentApi api) {
+        final DDAgentApi api) {
+      this.processor = traceProcessor;
       this.monitor = monitor;
       this.writer = writer;
       this.doTimeFlush = flushInterval > 0;
       this.api = api;
       if (doTimeFlush) {
-        this.flushIntervalMillis = timeUnit.toMillis(flushInterval);
+        flushIntervalMillis = timeUnit.toMillis(flushInterval);
         scheduleNextTimeFlush();
       } else {
-        this.flushIntervalMillis = Long.MAX_VALUE;
+        flushIntervalMillis = Long.MAX_VALUE;
       }
     }
 

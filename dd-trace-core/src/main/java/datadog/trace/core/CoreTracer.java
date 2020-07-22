@@ -185,21 +185,23 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.statsDClient = statsDClient;
     }
 
-    if (scopeManager == null) {
-      this.scopeManager =
-          new ContinuableScopeManager(
-              config.getScopeDepthLimit(),
-              createScopeEventFactory(),
-              this.statsDClient,
-              config.isScopeStrictMode());
-    } else {
-      this.scopeManager = scopeManager;
-    }
-
     if (writer == null) {
       this.writer = createWriter(config, sampler, this.statsDClient);
     } else {
       this.writer = writer;
+    }
+
+    if (scopeManager == null) {
+      this.scopeManager =
+          new ContinuableScopeManager(
+              config.getScopeDepthLimit(),
+              config.getMethodTraceSampleRate(),
+              createScopeEventFactory(),
+              this.writer.getTraceHeuristicsEvaluator(),
+              this.statsDClient,
+              config.isScopeStrictMode());
+    } else {
+      this.scopeManager = scopeManager;
     }
 
     this.writer.start();
@@ -383,6 +385,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     if (interceptors.isEmpty()) {
       writtenTrace = new ArrayList<>(trace);
     } else {
+      // TODO: move this off application thread to TraceProcessor
       Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
       for (final TraceInterceptor interceptor : interceptors) {
         interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
@@ -429,8 +432,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public String getTraceId() {
     final AgentSpan activeSpan = activeSpan();
-    if (activeSpan instanceof DDSpan) {
-      return ((DDSpan) activeSpan).getTraceId().toString();
+    if (activeSpan != null) {
+      return activeSpan.getTraceId().toString();
     }
     return "0";
   }
@@ -438,8 +441,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public String getSpanId() {
     final AgentSpan activeSpan = activeSpan();
-    if (activeSpan instanceof DDSpan) {
-      return ((DDSpan) activeSpan).getSpanId().toString();
+    if (activeSpan != null) {
+      return activeSpan.getSpanId().toString();
     }
     return "0";
   }

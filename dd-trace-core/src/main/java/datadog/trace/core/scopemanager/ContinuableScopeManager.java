@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -37,12 +38,16 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
   public ContinuableScopeManager(
       final int depthLimit,
+      final Double methodTraceSampleRate,
       final DDScopeEventFactory scopeEventFactory,
+      final TraceHeuristicsEvaluator traceHeuristicsEvaluator,
       final StatsDClient statsDClient,
       final boolean strictMode) {
     this(
         depthLimit,
+        methodTraceSampleRate,
         scopeEventFactory,
+        traceHeuristicsEvaluator,
         statsDClient,
         strictMode,
         new CopyOnWriteArrayList<ScopeListener>());
@@ -51,13 +56,20 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
   // Separate constructor to allow passing scopeListeners to super arg and assign locally.
   private ContinuableScopeManager(
       final int depthLimit,
+      final Double methodTraceSampleRate,
       final DDScopeEventFactory scopeEventFactory,
+      final TraceHeuristicsEvaluator traceHeuristicsEvaluator,
       final StatsDClient statsDClient,
       final boolean strictMode,
       final List<ScopeListener> scopeListeners) {
     super(
         new EventScopeInterceptor(
-            scopeEventFactory, new ListenerScopeInterceptor(scopeListeners, null)));
+            scopeEventFactory,
+            TraceProfilingScopeInterceptor.create(
+                methodTraceSampleRate,
+                traceHeuristicsEvaluator,
+                statsDClient,
+                new ListenerScopeInterceptor(scopeListeners, null))));
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
     this.statsDClient = statsDClient;
     this.strictMode = strictMode;

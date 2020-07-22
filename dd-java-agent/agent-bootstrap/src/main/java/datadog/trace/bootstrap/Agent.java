@@ -41,6 +41,7 @@ public class Agent {
   private static ClassLoader PARENT_CLASSLOADER = null;
   private static ClassLoader BOOTSTRAP_PROXY = null;
   private static ClassLoader AGENT_CLASSLOADER = null;
+  private static ClassLoader MLT_CLASSLOADER = null;
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
   private static ClassLoader PROFILING_CLASSLOADER = null;
 
@@ -54,6 +55,8 @@ public class Agent {
     startProfilingAgent(bootstrapURL, true);
 
     startDatadogAgent(inst, bootstrapURL);
+
+    installMethodLevelTracer(bootstrapURL);
 
     final boolean appUsingCustomLogManager = isAppUsingCustomLogManager();
 
@@ -264,13 +267,14 @@ public class Agent {
   private static synchronized void startJmx(final URL bootstrapURL) {
     startJmxFetch(bootstrapURL);
     initializeJmxThreadCpuTimeProvider();
+    initializeJmxThreadStackProvider();
     registerDeadlockDetectionEvent(bootstrapURL);
   }
 
-  private static synchronized void registerDeadlockDetectionEvent(URL bootstrapUrl) {
+  private static synchronized void registerDeadlockDetectionEvent(final URL bootstrapUrl) {
     log.info("Initializing JMX thread deadlock detector");
     try {
-      ClassLoader classLoader = getProfilingClassloader(bootstrapUrl);
+      final ClassLoader classLoader = getProfilingClassloader(bootstrapUrl);
       final Class<?> deadlockFactoryClass =
           classLoader.loadClass(
               "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory");
@@ -288,6 +292,26 @@ public class Agent {
     }
   }
 
+  private static synchronized void installMethodLevelTracer(final URL bootstrapURL) {
+    log.info("Installing Method-level Tracer");
+    try {
+      if (MLT_CLASSLOADER == null) {
+        log.info("Setting up Method-level Tracer ClassLoader");
+        MLT_CLASSLOADER = createDatadogClassLoader("mlt", bootstrapURL, PARENT_CLASSLOADER);
+      }
+      // install global method-level tracer
+      final Class<?> tracerInstallerClass =
+          MLT_CLASSLOADER.loadClass("datadog.trace.agent.mlt.TracerInstaller");
+      final Method tracerInstallerMethod = tracerInstallerClass.getMethod("install");
+      tracerInstallerMethod.invoke(null);
+    } catch (final ClassFormatError ex) {
+      // method-level trace supports JDK 8+ - it is ok to encounter ClassFormatError on JDK 7
+      log.warn("Method-level Tracer requires Java 8 or newer. The tracer will be disabled.");
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while installing the Method-Level Tracer", ex);
+    }
+  }
+
   /** Enable JMX based thread CPU time provider once it is safe to touch JMX */
   private static synchronized void initializeJmxThreadCpuTimeProvider() {
     log.info("Initializing JMX thread CPU time provider");
@@ -301,6 +325,21 @@ public class Agent {
       enableJmxMethod.invoke(null);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while initializing JMX thread CPU time provider", ex);
+    }
+  }
+
+  private static void initializeJmxThreadStackProvider() {
+    log.info("Initializing JMX ThreadStack provider");
+    if (MLT_CLASSLOADER == null) {
+      throw new IllegalStateException("Method-level tracer should have been started already");
+    }
+    try {
+      final Class<?> tracerInstallerClass =
+          MLT_CLASSLOADER.loadClass("com.datadog.mlt.sampler.ThreadStackAccess");
+      final Method enableJmxMethod = tracerInstallerClass.getMethod("enableJmx");
+      enableJmxMethod.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while initializing JMX ThreadStack provider", ex);
     }
   }
 
@@ -328,7 +367,7 @@ public class Agent {
       final URL bootstrapURL, final boolean isStartingFirst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
-      ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
+      final ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
       Thread.currentThread().setContextClassLoader(classLoader);
       final Class<?> profilingAgentClass =
           classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
@@ -348,7 +387,7 @@ public class Agent {
     }
   }
 
-  private static synchronized ClassLoader getProfilingClassloader(URL bootstrapURL)
+  private static synchronized ClassLoader getProfilingClassloader(final URL bootstrapURL)
       throws Exception {
     if (PROFILING_CLASSLOADER == null) {
       PROFILING_CLASSLOADER =
@@ -404,7 +443,7 @@ public class Agent {
     final Constructor constructor =
         loaderClass.getDeclaredConstructor(
             URL.class, String.class, ClassLoader.class, ClassLoader.class, ClassLoader.class);
-    ClassLoader classLoader =
+    final ClassLoader classLoader =
         (ClassLoader)
             constructor.newInstance(
                 bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, PARENT_CLASSLOADER);

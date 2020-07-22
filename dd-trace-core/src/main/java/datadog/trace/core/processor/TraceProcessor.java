@@ -2,11 +2,13 @@ package datadog.trace.core.processor;
 
 import datadog.trace.api.Config;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.core.processor.rule.AnalyticsSampleRateRule;
 import datadog.trace.core.processor.rule.DBStatementRule;
 import datadog.trace.core.processor.rule.ErrorRule;
 import datadog.trace.core.processor.rule.HttpStatusErrorRule;
 import datadog.trace.core.processor.rule.MarkSpanForMetricCalculationRule;
+import datadog.trace.core.processor.rule.MethodLevelTracingDataRule;
 import datadog.trace.core.processor.rule.ResourceNameRule;
 import datadog.trace.core.processor.rule.SpanTypeRule;
 import datadog.trace.core.processor.rule.URLAsResourceNameRule;
@@ -27,11 +29,15 @@ public class TraceProcessor {
         new URLAsResourceNameRule(),
         new AnalyticsSampleRateRule(),
         new MarkSpanForMetricCalculationRule(),
+        new MethodLevelTracingDataRule(),
       };
 
   private final List<Rule> rules;
 
-  public TraceProcessor() {
+  private final TraceHeuristicsEvaluator traceHeuristicsEvaluator;
+
+  public TraceProcessor(final TraceHeuristicsEvaluator traceHeuristicsEvaluator) {
+    this.traceHeuristicsEvaluator = traceHeuristicsEvaluator;
 
     rules = new ArrayList<>(DEFAULT_RULES.length);
     for (final Rule rule : DEFAULT_RULES) {
@@ -59,6 +65,12 @@ public class TraceProcessor {
   }
 
   public List<DDSpan> onTraceComplete(final List<DDSpan> trace) {
+    /**
+     * collect stats before applying rules because this is more realistic of what the trace will
+     * look like when comparing data before completion.
+     */
+    traceHeuristicsEvaluator.onTraceComplete(trace);
+
     for (final DDSpan span : trace) {
       applyRules(span);
     }

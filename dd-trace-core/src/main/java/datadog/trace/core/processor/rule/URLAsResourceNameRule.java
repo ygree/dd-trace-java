@@ -37,8 +37,7 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
     if (null == url) {
       return;
     }
-    context.setResourceName(
-        extractResourceNameFromURL(span.getTag(Tags.HTTP_METHOD), url.toString()));
+    span.setResourceName(extractResourceNameFromURL(span.getTag(Tags.HTTP_METHOD), url.toString()));
   }
 
   private String extractResourceNameFromURL(final Object method, final String url) {

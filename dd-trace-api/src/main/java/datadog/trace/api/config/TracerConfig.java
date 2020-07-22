@@ -28,6 +28,10 @@ public final class TracerConfig {
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
   public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
   public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
+  public static final String METHOD_TRACE_SAMPLE_RATE = "method.trace.sample.rate";
+  /** Temporary config... TODO: remove. */
+  public static final String METHOD_TRACE_ENCODE_DATA = "method.trace.encode.data";
+
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
   public static final String HEADER_TAGS = "trace.header.tags";
   public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";

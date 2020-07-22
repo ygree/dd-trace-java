@@ -5,15 +5,17 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.SpanFactory
-
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Subject
 
 class TraceProcessorTest extends DDSpecification {
 
+  def traceHeuristicsEvaluator = Mock(TraceHeuristicsEvaluator)
+
   @Subject
-  def processor = new TraceProcessor()
+  def processor = new TraceProcessor(traceHeuristicsEvaluator)
 
   def span = SpanFactory.newSpanOf(0)
   def trace = [span]
@@ -27,7 +29,7 @@ class TraceProcessorTest extends DDSpecification {
     ConfigUtils.updateConfig {
       System.setProperty("dd.trace.${name}.enabled", "false")
     }
-    def processor = new TraceProcessor()
+    def processor = new TraceProcessor(traceHeuristicsEvaluator)
 
     expect:
     !processor.rules.any {
