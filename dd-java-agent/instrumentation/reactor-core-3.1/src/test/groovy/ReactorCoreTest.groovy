@@ -15,6 +15,7 @@ import reactor.core.scheduler.Schedulers
 import spock.lang.Shared
 
 import java.time.Duration
+import java.util.concurrent.ScheduledThreadPoolExecutor
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
@@ -78,42 +79,67 @@ class ReactorCoreTest extends AgentTestRunner {
     }
 
     where:
-    name                                | expected | workSpans | publisherSupplier
-    "basic mono"                        | 2        | 1         | { -> Mono.just(1).map(addOne) }
-    "two operations mono"               | 4        | 2         | { -> Mono.just(2).map(addOne).map(addOne) }
-    "delayed mono"                      | 4        | 1         | { ->
+    name                                                    | expected | workSpans | publisherSupplier
+    "basic mono"                                            | 2        | 1         | { -> Mono.just(1).map(addOne) }
+    "two operations mono"                                   | 4        | 2         | { ->
+      Mono.just(2).map(addOne).map(addOne)
+    }
+    "delayed mono"                                          | 4        | 1         | { ->
       Mono.just(3).delayElement(Duration.ofMillis(100)).map(addOne)
     }
-    "delayed twice mono"                | 6        | 2         | { ->
+    "delayed twice mono"                                    | 6        | 2         | { ->
       Mono.just(4).delayElement(Duration.ofMillis(100)).map(addOne).delayElement(Duration.ofMillis(100)).map(addOne)
     }
-    "basic flux"                        | [6, 7]   | 2         | { -> Flux.fromIterable([5, 6]).map(addOne) }
-    "two operations flux"               | [8, 9]   | 4         | { ->
+    "basic flux"                                            | [6, 7]   | 2         | { ->
+      Flux.fromIterable([5, 6]).map(addOne)
+    }
+    "two operations flux"                                   | [8, 9]   | 4         | { ->
       Flux.fromIterable([6, 7]).map(addOne).map(addOne)
     }
-    "delayed flux"                      | [8, 9]   | 2         | { ->
+    "delayed flux"                                          | [8, 9]   | 2         | { ->
       Flux.fromIterable([7, 8]).delayElements(Duration.ofMillis(100)).map(addOne)
     }
-    "delayed twice flux"                | [10, 11] | 4         | { ->
+    "delayed twice flux"                                    | [10, 11] | 4         | { ->
       Flux.fromIterable([8, 9]).delayElements(Duration.ofMillis(100)).map(addOne).delayElements(Duration.ofMillis(100)).map(addOne)
     }
 
-    "mono from callable"                | 12       | 2         | { ->
+    "mono from callable"                                    | 12       | 2         | { ->
       Mono.fromCallable({ addOneFunc(10) }).map(addOne)
     }
 
-    "basic mono with elastic scheduler" | 2        | 1         | { ->
+    "basic mono with elastic scheduler"                     | 2        | 1         | { ->
       Mono.just(1).subscribeOn(Schedulers.elastic()).map(addOne)
     }
-    "basic flux with elastic scheduler" | [6, 7]   | 2         | { ->
+    "basic flux with elastic scheduler"                     | [6, 7]   | 2         | { ->
       Flux.fromIterable([5, 6]).subscribeOn(Schedulers.elastic()).map(addOne)
     }
 
-    "basic mono with single scheduler"  | 2        | 1         | { ->
+    "basic mono with immediate scheduler"                   | 2        | 1         | { ->
+      Mono.just(1).subscribeOn(Schedulers.immediate()).map(addOne)
+    }
+    "basic flux with immediate scheduler"                   | [6, 7]   | 2         | { ->
+      Flux.fromIterable([5, 6]).subscribeOn(Schedulers.immediate()).map(addOne)
+    }
+
+    "basic mono with parallel scheduler"                    | 2        | 1         | { ->
+      Mono.just(1).subscribeOn(Schedulers.parallel()).map(addOne)
+    }
+    "basic flux with parallel scheduler"                    | [6, 7]   | 2         | { ->
+      Flux.fromIterable([5, 6]).subscribeOn(Schedulers.parallel()).map(addOne)
+    }
+
+    "basic mono with single scheduler"                      | 2        | 1         | { ->
       Mono.just(1).subscribeOn(Schedulers.single()).map(addOne)
     }
-    "basic flux with single scheduler"  | [6, 7]   | 2         | { ->
+    "basic flux with single scheduler"                      | [6, 7]   | 2         | { ->
       Flux.fromIterable([5, 6]).subscribeOn(Schedulers.single()).map(addOne)
+    }
+
+    "basic mono with ScheduledThreadPoolExecutor scheduler" | 2        | 1         | { ->
+      Mono.just(1).subscribeOn(Schedulers.fromExecutorService(new ScheduledThreadPoolExecutor(5))).map(addOne)
+    }
+    "basic flux with ScheduledThreadPoolExecutor scheduler" | [6, 7]   | 2         | { ->
+      Flux.fromIterable([5, 6]).subscribeOn(Schedulers.fromExecutorService(new ScheduledThreadPoolExecutor(5))).map(addOne)
     }
   }
 
