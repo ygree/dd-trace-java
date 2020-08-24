@@ -11,7 +11,7 @@ function ctrl_c {
   fi
 }
 
-if [ "$#" -lt 2 ] && [ "$#" -gt 3 ]; then
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
   echo "Usage: driver.sh span_sample_rate_list stack_sampling_period_list [output_dir]"
   exit 2
 fi
