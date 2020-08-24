@@ -50,3 +50,8 @@ and the stack sampling periods. For each run a data file in the form of `mlt_<sa
 which can be then imported into a spreadsheet app to analyze them. The driver will also generate and
 preserve the low-level `mlt_<sampling_period>ms_<sample_rate * 100>.jtl` files which can eg. be loaded
 directly in JMeter app or parsed in python using the `python-jtl` module.
+
+## DD Agent integration
+In order for the Java agent to be able to send its data (profiles, traces, etc.) to DD 
+the DD agent (a separate process(es)) needs to be installed. See [DD docs](https://app.datadoghq.com/account/settings?_gl=1*9ma94b*_gcl_aw*R0NMLjE1OTc5Mjc0NzQuRUFJYUlRb2JDaE1JbGJfejF1ZXA2d0lWRUFCN0NoMk1iQTBxRUFBWUFTQUFFZ0pES3ZEX0J3RQ..#overview)
+for how to install DD agent.
