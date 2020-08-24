@@ -25,3 +25,5 @@ if [ -z "$AGENT_URL" ]; then
 fi
 
 wget -O .bin/dd-java-agent.jar "$AGENT_URL"
+
+echo "All set. Now you can do eg. `bash driver.sh 0.1,0.2 5,7,9` to run some benchmarks (or `bash driver.sh` for the usage help)"
