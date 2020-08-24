@@ -34,6 +34,7 @@ the JMeter in headless mode and convert the JMeter native JTL files into CSV agg
   * a convenience script to download and install all required dependencies on a Debian-like OS
   * the default settings can be modified by using the following env variables
     * PETCLINIC_URL - url to `git clone` the petclinic project from
+    * PETCLINIC_TAG - tag or branch to checkout
     * JMETER_URL - url to download the JMeter distribution from
 * [jtl2cvs.py](jtl2cvs.py) - a script converting the JMeter JTL files into CSV counterparts with aggregated latencies (min, max, avg, percentiles)
 

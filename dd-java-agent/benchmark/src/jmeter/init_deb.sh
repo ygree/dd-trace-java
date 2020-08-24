@@ -8,6 +8,10 @@ if [ -z "$PETCLINIC_URL" ]; then
   PETCLINIC_URL="https://github.com/spring-projects/spring-petclinic.git"
 fi
 
+if [ -z "$PETCLINIC_TAG" ]; then
+  PETCLINIC_TAG="MLT"
+fi
+
 if [ -z "$JMETER_URL" ]; then
   JMETER_URL="https://downloads.apache.org/jmeter/binaries/apache-jmeter-5.3.tgz"
 fi
@@ -18,7 +22,7 @@ if [ ! -d ".bin/apache-jmeter-5.3" ]; then
 fi
 
 if [ ! -d ".bin/spring-petclinic" ]; then
-  (cd .bin && git clone "$PETCLINIC_URL" && cd spring-petclinic && ./mvnw install)
+  (cd .bin && git clone "$PETCLINIC_URL" && git checkout PETCLINIC_TAG && cd spring-petclinic && ./mvnw install)
 fi
 
 if [ ! -d ~/.sdkman ]; then
