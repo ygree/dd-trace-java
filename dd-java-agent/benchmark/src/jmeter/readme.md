@@ -38,7 +38,7 @@ the JMeter in headless mode and convert the JMeter native JTL files into CSV agg
 * [jtl2cvs.py](jtl2cvs.py) - a script converting the JMeter JTL files into CSV counterparts with aggregated latencies (min, max, avg, percentiles)
 
 ## Running
-Typically, the system will be initialized by running `sh init_deb.sh` or, if targeting a different system,
+Typically, the system will be initialized by running `bash init_deb.sh` or, if targeting a different system,
 a corresponding sequence of commands to download and install the listed dependencies.
 
 Once the system is set up the benchmarking can be started as `bash driver.sh 0.1,0.2,0.5,0.8 1,5,10,100,200,500` - 
