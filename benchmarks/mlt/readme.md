@@ -49,7 +49,8 @@ The driver script will start the Petclinic Spring application for all the combin
 and the stack sampling periods. For each run a data file in the form of `mlt_<sampling_period>ms_<sample_rate * 100>.csv` 
 which can be then imported into a spreadsheet app to analyze them. The driver will also generate and
 preserve the low-level `mlt_<sampling_period>ms_<sample_rate * 100>.jtl` files which can eg. be loaded
-directly in JMeter app or parsed in python using the `python-jtl` module.
+directly in JMeter app or parsed in python using the `python-jtl` module. By default the output directory
+is set to be `. reports` relative to this benchmarks folder.
 
 ## DD Agent integration
 In order for the Java agent to be able to send its data (profiles, traces, etc.) to DD 

@@ -23,15 +23,22 @@ fi
 
 curl -s "https://get.sdkman.io" | bash
 sdk install java 11.0.8.hs-adpt
+sdk install java 8.0.265.hs-adpt
 sdk default java 11.0.8.hs-adpt
 
+JAVA_8_HOME="/home/ubuntu/.sdkman/candidates/java/8.0.265.hs-adpt"
+JAVA_11_HOME="/home/ubuntu/.sdkman/candidates/java/11.0.8.hs-adpt"
 
-AGENT_URL=$1
-
-if [ -z "$AGENT_URL" ]; then
-  AGENT_URL="https://oss.jfrog.org/oss-snapshot-local/com/datadoghq/dd-java-agent/0.61.0-MLT-SNAPSHOT/dd-java-agent-0.61.0-MLT-SNAPSHOT.jar"
-fi
-
-wget -O .bin/dd-java-agent.jar "$AGENT_URL"
+JAVA_HOME=$JAVA_8_HOME ../../gradlew --parallel dd-java-agent:shadowJar
+find ../../dd-java-agent/build/libs -name "*-SNAPSHOT.jar" -type f | xargs -I {} cp {} .bin/dd-java-agent.jar
+#
+#
+#AGENT_URL=$1
+#
+#if [ -z "$AGENT_URL" ]; then
+#  AGENT_URL="https://oss.jfrog.org/oss-snapshot-local/com/datadoghq/dd-java-agent/0.61.0-MLT-SNAPSHOT/dd-java-agent-0.61.0-MLT-SNAPSHOT.jar"
+#fi
+#
+#wget -O .bin/dd-java-agent.jar "$AGENT_URL"
 
 echo "All set. Now you can do eg. 'bash driver.sh 0.1,0.2 5,7,9' to run some benchmarks (or 'bash driver.sh' for the usage help)"
