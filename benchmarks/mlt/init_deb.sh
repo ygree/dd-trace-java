@@ -21,7 +21,9 @@ if [ ! -d ".bin/spring-petclinic" ]; then
   (cd .bin && git clone "$PETCLINIC_URL" && cd spring-petclinic && ./mvnw install)
 fi
 
-curl -s "https://get.sdkman.io" | bash
+if [ ! -d ~/.sdkman ]; then
+  curl -s "https://get.sdkman.io" | bash
+fi
 sdk install java 11.0.8.hs-adpt
 sdk install java 8.0.265.hs-adpt
 sdk default java 11.0.8.hs-adpt
