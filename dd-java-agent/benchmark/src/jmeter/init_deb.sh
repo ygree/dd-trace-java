@@ -18,7 +18,7 @@ fi
 
 mkdir -p .bin
 if [ ! -d ".bin/apache-jmeter-5.3" ]; then
-  (cd .bin && wget "$JMETER_URL" && find .bin -name "apache-jmeter-*.tgz" -type f | xargs -I {} tar xvzf {} && rm -f apache-jmeter-*.tgz)
+  (cd .bin && wget "$JMETER_URL" && find . -name "apache-jmeter-*.tgz" -type f | xargs -I {} tar xvzf {} && rm -f apache-jmeter-*.tgz)
 fi
 
 if [ ! -d ".bin/spring-petclinic" ]; then
