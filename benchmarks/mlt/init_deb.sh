@@ -4,13 +4,21 @@ sudo apt install python-pip perl wget curl
 pip install python-jtl
 pip install numpy
 
+if [ -z "$PETCLINIC_URL" ]; then
+  PETCLINIC_URL="https://github.com/spring-projects/spring-petclinic.git"
+fi
+
+if [ -z "$JMETER_URL" ]; then
+  JMETER_URL="https://downloads.apache.org/jmeter/binaries/apache-jmeter-5.3.tgz"
+fi
+
 mkdir -p .bin
 if [ ! -d ".bin/apache-jmeter-5.3" ]; then
-  (cd .bin && wget https://downloads.apache.org/jmeter/binaries/apache-jmeter-5.3.tgz && tar xvzf apache-jmeter-5.3.tgz && rm -f apache-jmeter-5.3.tgz)
+  (cd .bin && wget "$JMETER_URL" && find .bin -name "apache-jmeter-*.tgz" -type f | xargs -I {} tar xvzf {} && rm -f apache-jmeter-*.tgz)
 fi
 
 if [ ! -d ".bin/spring-petclinic" ]; then
-  (cd .bin && git clone https://github.com/spring-projects/spring-petclinic.git && cd spring-petclinic && ./mvnw install)
+  (cd .bin && git clone "$PETCLINIC_URL" && cd spring-petclinic && ./mvnw install)
 fi
 
 curl -s "https://get.sdkman.io" | bash
