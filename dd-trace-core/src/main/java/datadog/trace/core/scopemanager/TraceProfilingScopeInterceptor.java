@@ -11,9 +11,13 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.mlt.MethodLevelTracer;
 import datadog.trace.mlt.Session;
+import datadog.trace.mlt.SessionData;
+import lombok.extern.slf4j.Slf4j;
+
 import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 public abstract class TraceProfilingScopeInterceptor
     extends ScopeInterceptor.DelegatingInterceptor {
   private static final long MAX_NANOSECONDS_BETWEEN_ACTIVATIONS = TimeUnit.SECONDS.toNanos(1);
@@ -137,11 +141,18 @@ public abstract class TraceProfilingScopeInterceptor
   }
 
   private class TraceProfilingScope extends DelegatingScope {
+    private final ThreadLocal<Long> timestamp = new ThreadLocal<Long>() {
+      @Override
+      protected Long initialValue() {
+        return 0l;
+      }
+    };
     private final Session session;
     private final boolean rootScope;
 
     private TraceProfilingScope(final AgentSpan span, final Scope delegate) {
       super(delegate);
+      timestamp.set(System.nanoTime());
       rootScope = !IS_THREAD_PROFILING.get();
       if (rootScope) {
         statsDClient.incrementCounter("mlt.scope", "scope:root");
@@ -154,17 +165,21 @@ public abstract class TraceProfilingScopeInterceptor
 
     @Override
     public void close() {
+      long duration = System.nanoTime() - timestamp.get();
       if (rootScope) {
         IS_THREAD_PROFILING.set(false);
       }
       delegate.close();
-      final byte[] samplingData = session.close();
+      final SessionData samplingData = session.close();
 
       if (samplingData != null) {
+        log.info("Span {} closed. Took {}ms, generated {} samples.", span().getSpanName(), TimeUnit.MILLISECONDS.convert(duration, TimeUnit.NANOSECONDS), samplingData.getSampleCount());
+        byte[] data = samplingData.getBlob();
         statsDClient.incrementCounter("mlt.count");
-        statsDClient.count("mlt.bytes", samplingData.length);
+        statsDClient.count("mlt.samples", samplingData.getSampleCount());
+        statsDClient.count("mlt.bytes", samplingData.getBlob().length);
         AgentSpan span = span();
-        span.setTag(InstrumentationTags.DD_MLT, samplingData);
+        span.setTag(InstrumentationTags.DD_MLT, data);
         if (span.getSamplingPriority() == null) {
           // if priority not set, let's increase priority to improve chance this is kept.
           span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);

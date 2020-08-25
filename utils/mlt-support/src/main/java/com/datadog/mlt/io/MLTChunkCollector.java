@@ -135,4 +135,9 @@ public abstract class MLTChunkCollector implements IMLTChunk {
     }
     stacks.add(stackptr);
   }
+
+  // NOTE Only for debugging
+  protected final int getCollectedStacksCount() {
+    return stacks.size();
+  }
 }

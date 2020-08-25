@@ -25,6 +25,7 @@ class ProfilingIntegrationMLTTest extends AbstractSmokeTest {
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.add("-Ddd.profiling.continuous.to.periodic.upload.ratio=0") // Disable periodic profiles
+    command.add("-Ddd.method.trace.enabled=true") // enable MLT
     command.add("-Ddd.method.trace.sample.rate=1") // profile all traces
     command.addAll((String[]) ["-jar", profilingShadowJar])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
