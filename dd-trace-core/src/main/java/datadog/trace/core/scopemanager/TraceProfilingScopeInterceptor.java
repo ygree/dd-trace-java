@@ -173,7 +173,7 @@ public abstract class TraceProfilingScopeInterceptor
       final SessionData samplingData = session.close();
 
       if (duration > 0 || samplingData.getSampleCount() > 0) {
-        log.info("Span {} closed. Took {}ms, generated {} samples.", span().getSpanName(), duration, samplingData.getSampleCount());
+        log.info("Span close: '{}',{},{}", span().getSpanName(), duration, samplingData.getSampleCount());
       }
       byte[] data = samplingData.getBlob();
       if (data != null) {
