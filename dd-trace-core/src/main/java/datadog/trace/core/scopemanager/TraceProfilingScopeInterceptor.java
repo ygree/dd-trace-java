@@ -140,26 +140,23 @@ public abstract class TraceProfilingScopeInterceptor
     }
   }
 
+  private static final ThreadLocal<Integer> SCOPE_LEVEL = new ThreadLocal<Integer>() {
+    @Override
+    protected Integer initialValue() {
+      return 0;
+    }
+  };
+
   private class TraceProfilingScope extends DelegatingScope {
-    private final ThreadLocal<Long> timestamp = new ThreadLocal<Long>() {
-      @Override
-      protected Long initialValue() {
-        return 0l;
-      }
-    };
-    private final ThreadLocal<Integer> level = new ThreadLocal<Integer>() {
-      @Override
-      protected Integer initialValue() {
-        return 0;
-      }
-    };
+    private final long timestamp;
+
     private final Session session;
     private final boolean rootScope;
 
     private TraceProfilingScope(final AgentSpan span, final Scope delegate) {
       super(delegate);
-      level.set(level.get() + 1);
-      timestamp.set(System.nanoTime());
+      SCOPE_LEVEL.set(SCOPE_LEVEL.get() + 1);
+      timestamp = System.nanoTime();
       rootScope = !IS_THREAD_PROFILING.get();
       if (rootScope) {
         statsDClient.incrementCounter("mlt.scope", "scope:root");
@@ -172,9 +169,9 @@ public abstract class TraceProfilingScopeInterceptor
 
     @Override
     public void close() {
-      long duration = TimeUnit.MILLISECONDS.convert(System.nanoTime() - timestamp.get(), TimeUnit.NANOSECONDS);
-      int myLevel = level.get();
-      level.set(Math.max(myLevel - 1, 0));
+      long duration = TimeUnit.MILLISECONDS.convert(System.nanoTime() - timestamp, TimeUnit.NANOSECONDS);
+      int myLevel = SCOPE_LEVEL.get();
+      SCOPE_LEVEL.set(Math.max(myLevel - 1, 0));
       if (rootScope) {
         IS_THREAD_PROFILING.set(false);
       }
