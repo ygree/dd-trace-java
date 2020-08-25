@@ -15,6 +15,7 @@ import datadog.trace.mlt.SessionData;
 import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
+import java.util.Deque;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -147,6 +148,13 @@ public abstract class TraceProfilingScopeInterceptor
     }
   };
 
+  private static final ThreadLocal<Long> CUMULATIVE_SAMPLES = new ThreadLocal<Long>() {
+    @Override
+    protected Long initialValue() {
+      return 0l;
+    }
+  };
+
   private class TraceProfilingScope extends DelegatingScope {
     private final long timestamp;
 
@@ -161,6 +169,7 @@ public abstract class TraceProfilingScopeInterceptor
       if (rootScope) {
         statsDClient.incrementCounter("mlt.scope", "scope:root");
         IS_THREAD_PROFILING.set(true);
+        CUMULATIVE_SAMPLES.set(0l);
       } else {
         statsDClient.incrementCounter("mlt.scope", "scope:child");
       }
@@ -178,8 +187,10 @@ public abstract class TraceProfilingScopeInterceptor
       delegate.close();
       final SessionData samplingData = session.close();
 
+      long samples = samplingData.getSampleCount() + CUMULATIVE_SAMPLES.get();
+      CUMULATIVE_SAMPLES.set(samples);
       if (duration > 0) {
-        log.info("Scope close: '{}',{},{},{},{},{}", span().getSpanName(), myLevel, rootScope, duration, samplingData.getSampleCount(), (samplingData.getSampleCount() * 1000) / (float)duration);
+        log.info("Scope close: '{}',{},{},{},{},{}", span().getSpanName(), myLevel, rootScope, duration, samplingData.getSampleCount(), samples);
       }
       byte[] data = samplingData.getBlob();
       if (data != null) {
