@@ -67,7 +67,7 @@ public class MethodLevelTracer {
 
   private static class NoSession implements Session {
     @Override
-    public byte[] close() {
+    public SessionData close() {
       return null;
     }
   }
