@@ -181,8 +181,8 @@ public abstract class TraceProfilingScopeInterceptor
       delegate.close();
       final SessionData samplingData = session.close();
 
-      if (duration > 0 || samplingData.getSampleCount() > 0) {
-        log.info("Scope close: '{}',{},{},{},{}", span().getSpanName(), myLevel, rootScope, duration, samplingData.getSampleCount());
+      if (duration > 0) {
+        log.info("Scope close: '{}',{},{},{},{},{}", span().getSpanName(), myLevel, rootScope, duration, samplingData.getSampleCount(), (samplingData.getSampleCount() * 1000) / (float)duration);
       }
       byte[] data = samplingData.getBlob();
       if (data != null) {
