@@ -165,7 +165,7 @@ public abstract class TraceProfilingScopeInterceptor
 
     @Override
     public void close() {
-      long duration = System.nanoTime() - timestamp.get();
+      long duration = TimeUnit.MILLISECONDS.convert(System.nanoTime() - timestamp.get(), TimeUnit.NANOSECONDS);
       if (rootScope) {
         IS_THREAD_PROFILING.set(false);
       }
@@ -173,7 +173,7 @@ public abstract class TraceProfilingScopeInterceptor
       final SessionData samplingData = session.close();
 
       if (duration > 0 || samplingData.getSampleCount() > 0) {
-        log.info("Span {} closed. Took {}ms, generated {} samples.", span().getSpanName(), TimeUnit.MILLISECONDS.convert(duration, TimeUnit.NANOSECONDS), samplingData.getSampleCount());
+        log.info("Span {} closed. Took {}ms, generated {} samples.", span().getSpanName(), duration, samplingData.getSampleCount());
       }
       byte[] data = samplingData.getBlob();
       if (data != null) {
