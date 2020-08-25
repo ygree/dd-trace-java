@@ -161,6 +161,7 @@ public abstract class TraceProfilingScopeInterceptor
       level.set(level.get() + 1);
       timestamp.set(System.nanoTime());
       rootScope = !IS_THREAD_PROFILING.get();
+      log.info("Scope open: '{}',{}", span().getSpanName(), rootScope);
       if (rootScope) {
         statsDClient.incrementCounter("mlt.scope", "scope:root");
         IS_THREAD_PROFILING.set(true);
@@ -182,7 +183,7 @@ public abstract class TraceProfilingScopeInterceptor
       final SessionData samplingData = session.close();
 
       if (duration > 0 || samplingData.getSampleCount() > 0) {
-        log.info("Span close: {},{},'{}',{},{}", myLevel, rootScope, span().getSpanName(), duration, samplingData.getSampleCount());
+        log.info("Scope close: '{}',{},{},{},{}", span().getSpanName(), myLevel, rootScope, duration, samplingData.getSampleCount());
       }
       byte[] data = samplingData.getBlob();
       if (data != null) {
