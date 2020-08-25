@@ -29,7 +29,7 @@ public class JMXSession implements Session {
   public SessionData close() {
     byte[] data = scopeStackCollector.end(IMLTChunk::serialize);
     cleanup.accept(this);
-    return new SessionData(data, scopeStackCollector.getCollectedStacksCount());
+    return data != null ? new SessionData(data, scopeStackCollector.getCollectedStacksCount()) : null;
   }
 
   String getId() {
