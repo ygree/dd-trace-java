@@ -1,5 +1,6 @@
 package datadog.trace.core.scopemanager;
 
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.RateLimiter;
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
@@ -147,6 +148,12 @@ public abstract class TraceProfilingScopeInterceptor
         return 0l;
       }
     };
+    private final ThreadLocal<Integer> level = new ThreadLocal<Integer>() {
+      @Override
+      protected Integer initialValue() {
+        return 0;
+      }
+    };
     private final Session session;
     private final boolean rootScope;
 
@@ -166,6 +173,8 @@ public abstract class TraceProfilingScopeInterceptor
     @Override
     public void close() {
       long duration = TimeUnit.MILLISECONDS.convert(System.nanoTime() - timestamp.get(), TimeUnit.NANOSECONDS);
+      int myLevel = level.get();
+      level.set(Math.max(myLevel - 1, 0));
       if (rootScope) {
         IS_THREAD_PROFILING.set(false);
       }
@@ -173,7 +182,7 @@ public abstract class TraceProfilingScopeInterceptor
       final SessionData samplingData = session.close();
 
       if (duration > 0 || samplingData.getSampleCount() > 0) {
-        log.info("Span close: '{}',{},{}", span().getSpanName(), duration, samplingData.getSampleCount());
+        log.info("{} Span close: '{}',{},{}", Strings.repeat(".", myLevel), span().getSpanName(), duration, samplingData.getSampleCount());
       }
       byte[] data = samplingData.getBlob();
       if (data != null) {
