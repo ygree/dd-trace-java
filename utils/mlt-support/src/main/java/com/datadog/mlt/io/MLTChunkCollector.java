@@ -21,6 +21,7 @@ public abstract class MLTChunkCollector implements IMLTChunk {
   @Getter protected final ConstantPool<String> stringPool;
 
   private final IntList stacks = new IntArrayList();
+  private int stackCount = 0;
 
   public MLTChunkCollector(
       Throwable baseStack,
@@ -42,6 +43,7 @@ public abstract class MLTChunkCollector implements IMLTChunk {
     if (stackTrace.length == 0) {
       return;
     }
+    stackCount++;
     if (baseStack != null) {
       StackTraceElement[] base = baseStack.getStackTrace();
       baseStack = null;
@@ -138,6 +140,6 @@ public abstract class MLTChunkCollector implements IMLTChunk {
 
   // NOTE Only for debugging
   public final int getCollectedStacksCount() {
-    return stacks.size();
+    return stackCount;
   }
 }
