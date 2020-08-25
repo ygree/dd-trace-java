@@ -159,6 +159,7 @@ public abstract class TraceProfilingScopeInterceptor
 
     private TraceProfilingScope(final AgentSpan span, final Scope delegate) {
       super(delegate);
+      level.set(level.get() + 1);
       timestamp.set(System.nanoTime());
       rootScope = !IS_THREAD_PROFILING.get();
       if (rootScope) {
