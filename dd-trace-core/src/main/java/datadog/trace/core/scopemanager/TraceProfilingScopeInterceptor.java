@@ -161,7 +161,7 @@ public abstract class TraceProfilingScopeInterceptor
       level.set(level.get() + 1);
       timestamp.set(System.nanoTime());
       rootScope = !IS_THREAD_PROFILING.get();
-      log.info("Scope open: '{}',{}", span().getSpanName(), rootScope);
+      log.info("Scope open: '{}',{},{}", span().getSpanName(), rootScope, level.get());
       if (rootScope) {
         statsDClient.incrementCounter("mlt.scope", "scope:root");
         IS_THREAD_PROFILING.set(true);
