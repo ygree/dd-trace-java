@@ -195,7 +195,7 @@ public abstract class TraceProfilingScopeInterceptor
         CUMULATIVE_SAMPLES.get().peek().addAndGet(mySamples);
       }
       if (duration > 0) {
-        log.info("Scope close: '{}',{},{},{},{},{}", span().getSpanName(), span().getTraceId().toLong(), rootScope, duration, samplingData.getSampleCount(), samples);
+        log.info("Scope close: {},{},{},{},{},{}", span().getSpanName(), span().getTraceId().toLong(), rootScope, duration, samplingData.getSampleCount(), samples);
       }
       byte[] data = samplingData.getBlob();
       if (data != null) {
