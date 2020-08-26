@@ -30,7 +30,7 @@ class JMXSampler {
     long samplerPeriod = Long.getLong("mlt.sampler.ms", 10);
     // rate limiting exception logging to 1 per minute
     exceptionCountBeforeLog = samplerPeriod != 0 ? 60 * 1000 / samplerPeriod : 60 * 1000;
-    executor.scheduleAtFixedRate(this::sample, 0, samplerPeriod, TimeUnit.MILLISECONDS);
+    executor.scheduleWithFixedDelay(this::sample, 0, samplerPeriod, TimeUnit.MILLISECONDS);
   }
 
   public void shutdown() {
@@ -90,6 +90,7 @@ class JMXSampler {
   }
 
   private void sample() {
+    long ts = System.nanoTime();
     try {
       long[] tmpArray = threadIds.get();
       if (tmpArray == null || tmpArray.length == 0) {
@@ -122,6 +123,8 @@ class JMXSampler {
         log.info("Exception thrown during JMX sampling:", ex);
       }
       exceptionCount++;
+    } finally {
+      log.info("Sample done in {}ms", TimeUnit.MILLISECONDS.convert(System.nanoTime() - ts, TimeUnit.NANOSECONDS));
     }
   }
 }
