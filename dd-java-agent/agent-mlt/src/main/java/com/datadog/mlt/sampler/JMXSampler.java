@@ -101,6 +101,7 @@ class JMXSampler {
         providerFirstAccess = false;
       }
       final ThreadInfo[] threadInfos = provider.getThreadInfo(tmpArray);
+      log.info("Collecting samples");
       // dispatch to Scopes
       for (ThreadInfo threadInfo : threadInfos) {
         if (threadInfo == null) {
