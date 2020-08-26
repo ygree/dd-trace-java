@@ -15,8 +15,10 @@ import datadog.trace.mlt.SessionData;
 import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
+import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 public abstract class TraceProfilingScopeInterceptor
@@ -148,10 +150,10 @@ public abstract class TraceProfilingScopeInterceptor
     }
   };
 
-  private static final ThreadLocal<Long> CUMULATIVE_SAMPLES = new ThreadLocal<Long>() {
+  private static final ThreadLocal<Deque<AtomicLong>> CUMULATIVE_SAMPLES = new ThreadLocal<Deque<AtomicLong>>() {
     @Override
-    protected Long initialValue() {
-      return 0l;
+    protected Deque<AtomicLong> initialValue() {
+      return new ArrayDeque<>();
     }
   };
 
@@ -163,13 +165,13 @@ public abstract class TraceProfilingScopeInterceptor
 
     private TraceProfilingScope(final AgentSpan span, final Scope delegate) {
       super(delegate);
+      CUMULATIVE_SAMPLES.get().push(new AtomicLong(0L));
       SCOPE_LEVEL.set(SCOPE_LEVEL.get() + 1);
       timestamp = System.nanoTime();
       rootScope = !IS_THREAD_PROFILING.get();
       if (rootScope) {
         statsDClient.incrementCounter("mlt.scope", "scope:root");
         IS_THREAD_PROFILING.set(true);
-        CUMULATIVE_SAMPLES.set(0l);
       } else {
         statsDClient.incrementCounter("mlt.scope", "scope:child");
       }
@@ -187,8 +189,11 @@ public abstract class TraceProfilingScopeInterceptor
       delegate.close();
       final SessionData samplingData = session.close();
 
-      long samples = samplingData.getSampleCount() + CUMULATIVE_SAMPLES.get();
-      CUMULATIVE_SAMPLES.set(samples);
+      long mySamples = samplingData.getSampleCount();
+      long samples = samplingData.getSampleCount() + CUMULATIVE_SAMPLES.get().pop().get();
+      if (!rootScope) {
+        CUMULATIVE_SAMPLES.get().peek().addAndGet(mySamples);
+      }
       if (duration > 0) {
         log.info("Scope close: '{}',{},{},{},{},{}", span().getSpanName(), myLevel, rootScope, duration, samplingData.getSampleCount(), samples);
       }
