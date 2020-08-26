@@ -170,7 +170,7 @@ public abstract class TraceProfilingScopeInterceptor
       timestamp = System.nanoTime();
       rootScope = !IS_THREAD_PROFILING.get();
       if (rootScope) {
-        log.info("Open scope: {}, {}", Thread.currentThread().getId(), span.getTraceId());
+        log.debug("Open scope: {}, {}", Thread.currentThread().getId(), span.getTraceId());
         statsDClient.incrementCounter("mlt.scope", "scope:root");
         IS_THREAD_PROFILING.set(true);
       } else {
@@ -195,7 +195,7 @@ public abstract class TraceProfilingScopeInterceptor
         CUMULATIVE_SAMPLES.get().peek().addAndGet(samples);
       }
       if (duration > 0) {
-        log.info("Scope close: {},{},{},{},{},{}", span().getSpanName(), span().getTraceId().toLong(), rootScope, duration, Thread.currentThread().getId(), samples);
+        log.debug("Scope close: {},{},{},{},{},{}", span().getSpanName(), span().getTraceId().toLong(), rootScope, duration, Thread.currentThread().getId(), samples);
       }
       byte[] data = samplingData.getBlob();
       if (data != null) {

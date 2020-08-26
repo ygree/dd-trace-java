@@ -127,7 +127,7 @@ class JMXSampler {
     } finally {
       long dur = TimeUnit.MILLISECONDS.convert(System.nanoTime() - ts, TimeUnit.NANOSECONDS);
       if (sampleCount > 0) {
-        log.info("Collected {} samples in {}ms", sampleCount, dur);
+        log.debug("Collected {} samples in {}ms", sampleCount, dur);
       }
     }
   }
