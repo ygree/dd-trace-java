@@ -189,10 +189,9 @@ public abstract class TraceProfilingScopeInterceptor
       delegate.close();
       final SessionData samplingData = session.close();
 
-      long mySamples = samplingData.getSampleCount();
       long samples = samplingData.getSampleCount() + CUMULATIVE_SAMPLES.get().pop().get();
       if (!rootScope) {
-        CUMULATIVE_SAMPLES.get().peek().addAndGet(mySamples);
+        CUMULATIVE_SAMPLES.get().peek().addAndGet(samples);
       }
       if (duration > 0) {
         log.info("Scope close: {},{},{},{},{},{}", span().getSpanName(), span().getTraceId().toLong(), rootScope, duration, Thread.currentThread().getId(), samples);
