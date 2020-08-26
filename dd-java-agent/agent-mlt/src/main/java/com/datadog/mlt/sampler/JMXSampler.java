@@ -91,6 +91,7 @@ class JMXSampler {
 
   private void sample() {
     long ts = System.nanoTime();
+    long sampleCount = 0;
     try {
       long[] tmpArray = threadIds.get();
       if (tmpArray == null || tmpArray.length == 0) {
@@ -107,7 +108,7 @@ class JMXSampler {
         if (threadInfo == null) {
           continue;
         }
-        log.info("Collecting samples for {}", threadInfo.getThreadId());
+        sampleCount++;
         ScopeManager scopeManager = threadScopeMapper.forThread(threadInfo.getThreadId());
         if (scopeManager == null) {
           continue;
@@ -126,7 +127,7 @@ class JMXSampler {
     } finally {
       long dur = TimeUnit.MILLISECONDS.convert(System.nanoTime() - ts, TimeUnit.NANOSECONDS);
       if (dur > 1) {
-        log.info("Sample done in {}ms", dur);
+        log.info("Collected {} samples in {}ms", sampleCount, dur);
       }
     }
   }
