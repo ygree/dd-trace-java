@@ -124,7 +124,10 @@ class JMXSampler {
       }
       exceptionCount++;
     } finally {
-      log.info("Sample done in {}ms", TimeUnit.MILLISECONDS.convert(System.nanoTime() - ts, TimeUnit.NANOSECONDS));
+      long dur = TimeUnit.MILLISECONDS.convert(System.nanoTime() - ts, TimeUnit.NANOSECONDS);
+      if (dur > 1) {
+        log.info("Sample done in {}ms", dur);
+      }
     }
   }
 }
