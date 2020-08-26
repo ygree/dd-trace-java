@@ -45,9 +45,9 @@ public abstract class MLTChunkCollector implements IMLTChunk {
     }
     stackCount++;
     if (baseStack != null) {
-      StackTraceElement[] base = baseStack.getStackTrace();
+      StackTraceElement[] base = new StackTraceElement[0]; //baseStack.getStackTrace();
       baseStack = null;
-      collect(base); // recursive call to add base as first element.
+//      collect(base); // recursive call to add base as first element.
     }
     FrameSequence tree;
     int[] framePtrs = new int[stackTrace.length];
