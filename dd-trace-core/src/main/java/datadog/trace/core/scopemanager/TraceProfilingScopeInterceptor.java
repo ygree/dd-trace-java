@@ -75,18 +75,25 @@ public abstract class TraceProfilingScopeInterceptor
         new BigDecimal(CoreTracer.TRACE_ID_MAX);
 
     private final long cutoff;
+    private final boolean all;
 
     private Percentage(
         final double percent, final StatsDClient statsDClient, final ScopeInterceptor delegate) {
       super(statsDClient, delegate);
       assert 0 <= percent && percent <= 1;
-      cutoff = new BigDecimal(percent).multiply(TRACE_ID_MAX_AS_BIG_DECIMAL).longValue();
+      if (percent == 1) {
+        all = true;
+        cutoff = Long.MIN_VALUE;
+      } else {
+        all = false;
+        cutoff = new BigDecimal(percent).multiply(TRACE_ID_MAX_AS_BIG_DECIMAL).longValue();
+      }
     }
 
     @Override
     boolean shouldProfile(final AgentSpan span) {
       // Do we want to apply rate limiting?
-      return compareUnsigned(span.getTraceId().toLong(), cutoff) <= 0;
+      return all || compareUnsigned(span.getTraceId().toLong(), cutoff) <= 0;
     }
 
     // When we drop support for 1.7, we can use Long.compareUnsigned directly.
