@@ -307,14 +307,14 @@ public final class ProfileUploader {
     // * OkHTTP doesn't provide direct way to send uploads from streams - and workarounds would
     // require stream that allows 'repeatable reads' because we may need to resend that data.
     final RequestBody body = compression.compress(data.getStream(), expectedRequestSize);
-    if (log.isDebugEnabled()) {
-      log.debug(
+//    if (log.isDebugEnabled()) {
+      log.info(
           "Uploading profile {} [{}] (Size={}/{} bytes)",
           data.getName(),
           type,
           body.contentLength(),
           expectedRequestSize);
-    }
+//    }
 
     // The body data is stored in byte array so we naturally get size limit that will fit into int
     updateUploadSizesHistory((int) body.contentLength());
