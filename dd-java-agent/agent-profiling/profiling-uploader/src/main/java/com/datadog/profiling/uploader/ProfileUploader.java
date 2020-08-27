@@ -144,7 +144,7 @@ public final class ProfileUploader {
     apiKey = config.getApiKey();
     this.containerId = containerId;
 
-    log.debug("Started ProfileUploader with target url {}", url);
+    log.info("Started ProfileUploader with target url {}", url);
     /*
     FIXME: currently `Config` class cannot get access to some pieces of information we need here:
     * PID (see PidHelper for details),
