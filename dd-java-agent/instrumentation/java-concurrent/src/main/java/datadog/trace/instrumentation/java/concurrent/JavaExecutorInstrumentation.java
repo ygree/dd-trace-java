@@ -66,12 +66,6 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
     transformers.put(
         nameMatches("invoke").and(takesArgument(0, ForkJoinTask.class)),
         JavaExecutorInstrumentation.class.getName() + "$SetJavaForkJoinStateAdvice");
-    transformers.put(
-        named("schedule").and(takesArgument(0, Runnable.class)),
-        JavaExecutorInstrumentation.class.getName() + "$SetSubmitRunnableStateAdvice");
-    transformers.put(
-        named("schedule").and(takesArgument(0, Callable.class)),
-        JavaExecutorInstrumentation.class.getName() + "$SetCallableStateAdvice");
     return transformers;
   }
 
@@ -207,14 +201,10 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
         for (final Callable<?> task : tasks) {
           if (task != null) {
             final Callable newTask = CallableWrapper.wrapIfNeeded(task);
-            if (ExecutorInstrumentationUtils.isExecutorDisabledForThisTask(executor, newTask)) {
-              wrappedTasks.add(task);
-            } else {
-              wrappedTasks.add(newTask);
-              final ContextStore<Callable, State> contextStore =
-                  InstrumentationContext.get(Callable.class, State.class);
-              ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
-            }
+            wrappedTasks.add(newTask);
+            final ContextStore<Callable, State> contextStore =
+                InstrumentationContext.get(Callable.class, State.class);
+            ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
           }
         }
         tasks = wrappedTasks;

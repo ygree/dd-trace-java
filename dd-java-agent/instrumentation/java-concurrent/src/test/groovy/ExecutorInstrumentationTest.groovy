@@ -105,15 +105,15 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAny with timeout" | invokeAnyTimeout    | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
 
     // Scheduled executor has additional methods and also may get disabled because it wraps tasks
-    "execute Runnable"       | executeRunnable     | new ScheduledThreadPoolExecutor(1)
-    "submit Runnable"        | submitRunnable      | new ScheduledThreadPoolExecutor(1)
-    "submit Callable"        | submitCallable      | new ScheduledThreadPoolExecutor(1)
+    "execute Runnable"       | executeRunnable     | new ScheduledThreadPoolExecutor(1) //
+    "submit Runnable"        | submitRunnable      | new ScheduledThreadPoolExecutor(1) //
+    "submit Callable"        | submitCallable      | new ScheduledThreadPoolExecutor(1) //
     "invokeAll"              | invokeAll           | new ScheduledThreadPoolExecutor(1)
     "invokeAll with timeout" | invokeAllTimeout    | new ScheduledThreadPoolExecutor(1)
     "invokeAny"              | invokeAny           | new ScheduledThreadPoolExecutor(1)
     "invokeAny with timeout" | invokeAnyTimeout    | new ScheduledThreadPoolExecutor(1)
-    "schedule Runnable"      | scheduleRunnable    | new ScheduledThreadPoolExecutor(1)
-    "schedule Callable"      | scheduleCallable    | new ScheduledThreadPoolExecutor(1)
+    "schedule Runnable"      | scheduleRunnable    | new ScheduledThreadPoolExecutor(1) //
+    "schedule Callable"      | scheduleCallable    | new ScheduledThreadPoolExecutor(1) //
 
     // ForkJoinPool has additional set of method overloads for ForkJoinTask to deal with
     "execute Runnable"       | executeRunnable     | new ForkJoinPool()
