@@ -27,6 +27,7 @@ public final class RunnableWrapper implements Runnable {
       log.debug("Wrapping runnable task {}", task);
       return new RunnableWrapper(task);
     }
+    log.debug("NOT wrapping runnable task {}", task);
     return task;
   }
 }
