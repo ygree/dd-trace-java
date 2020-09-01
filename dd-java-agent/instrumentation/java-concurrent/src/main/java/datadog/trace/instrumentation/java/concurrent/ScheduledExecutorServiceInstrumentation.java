@@ -13,10 +13,12 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumen
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.Future;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -24,6 +26,16 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class ScheduledExecutorServiceInstrumentation extends AbstractExecutorInstrumentation {
+
+  @Override
+  public Map<String, String> contextStore() {
+    final Map<String, String> map = new HashMap<>();
+    map.put(Runnable.class.getName(), State.class.getName());
+    map.put(Callable.class.getName(), State.class.getName());
+    map.put(ForkJoinTask.class.getName(), State.class.getName());
+    map.put(Future.class.getName(), State.class.getName());
+    return Collections.unmodifiableMap(map);
+  }
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
