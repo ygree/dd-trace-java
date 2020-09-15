@@ -48,7 +48,7 @@ class CoreTracerTest extends DDSpecification {
     tracer.serviceName != ""
     tracer.sampler instanceof RateByServiceSampler
     tracer.writer instanceof DDAgentWriter
-    tracer.statsDClient instanceof NoOpStatsDClient
+    tracer.statsDClient instanceof NonBlockingStatsDClient
 
     !tracer.spanTagInterceptors.isEmpty()
 
@@ -56,22 +56,20 @@ class CoreTracerTest extends DDSpecification {
     tracer.extractor instanceof HttpCodec.CompoundExtractor
   }
 
-  def "verify enabling health monitor"() {
+  def "verify disabling health monitor"() {
     setup:
-    System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "true")
+    System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "false")
 
     when:
     def tracer = CoreTracer.builder().config(new Config()).build()
 
     then:
-    tracer.statsDClient instanceof NonBlockingStatsDClient
+    tracer.statsDClient instanceof NoOpStatsDClient
   }
 
   def "verify service, env, and version are added as stats tags"() {
     setup:
     def expectedSize = 6
-    System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "true")
-
     if (service != null) {
       System.setProperty(PREFIX + SERVICE_NAME, service)
     }

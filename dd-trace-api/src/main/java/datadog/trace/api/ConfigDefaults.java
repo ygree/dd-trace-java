@@ -46,7 +46,7 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
 
-  static final boolean DEFAULT_METRICS_ENABLED = false;
+  static final boolean DEFAULT_METRICS_ENABLED = true;
   // No default constants for metrics statsd support -- falls back to jmxfetch values
 
   static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
