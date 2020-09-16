@@ -13,8 +13,8 @@ import spock.lang.Shared
 import java.time.Duration
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
 class ReactorCoreTest extends AgentTestRunner {
@@ -23,14 +23,12 @@ class ReactorCoreTest extends AgentTestRunner {
 
   @Shared
   def addOne = { i ->
-    // FIXME: Our clock implementation doesn't guarantee that start times are monotonic across
-    //  traces, we base span start times on a millisecond time from the start of the trace and
-    //  offset a number of nanos, this does not guarantee that the start times are monotonic. Thus
-    //  2 traces started during the same millisecond might have the span start times wrong relative
-    //  to each other. IE: TraceA and TraceB start at the same millisecond, SpanA1 starts, then
-    //  SpanB1 starts. SpanB1 can have an earlier startTimeNano than SpanA1
-    sleep(1)
     addOneFunc(i)
+  }
+
+  @Shared
+  def addTwo = { i ->
+    addTwoFunc(i)
   }
 
   @Shared
@@ -40,7 +38,7 @@ class ReactorCoreTest extends AgentTestRunner {
 
   def "Publisher '#name' test"() {
     when:
-    def result = runUnderTrace(publisherSupplier)
+    def result = assemblePublisherUnderTrace(publisherSupplier)
 
     then:
     result == expected
@@ -96,7 +94,7 @@ class ReactorCoreTest extends AgentTestRunner {
 
   def "Publisher error '#name' test"() {
     when:
-    runUnderTrace(publisherSupplier)
+    assemblePublisherUnderTrace(publisherSupplier)
 
     then:
     def exception = thrown RuntimeException
@@ -133,7 +131,7 @@ class ReactorCoreTest extends AgentTestRunner {
 
   def "Publisher step '#name' test"() {
     when:
-    runUnderTrace(publisherSupplier)
+    assemblePublisherUnderTrace(publisherSupplier)
 
     then:
     def exception = thrown RuntimeException
@@ -209,7 +207,7 @@ class ReactorCoreTest extends AgentTestRunner {
 
   def "Publisher chain spans have the correct parent for '#name'"() {
     when:
-    runUnderTrace(publisherSupplier)
+    assemblePublisherUnderTrace(publisherSupplier)
 
     then:
     assertTraces(1) {
@@ -246,33 +244,70 @@ class ReactorCoreTest extends AgentTestRunner {
     "basic flux" | 5         | { -> Flux.fromIterable([5, 6]).map(addOne).map(addOne).then(Mono.just(1).map(addOne)) }
   }
 
-  def "Publisher chain spans have the correct parents from assembly time '#name'"() {
+  def "Publisher chain spans have the correct parents from subscription time"() {
     when:
-    runUnderTrace {
-      // The operations in the publisher created here all end up children of the publisher-parent
+    def mono = Mono.just(42)
+      .map(addOne)
+      .map(addTwo)
+
+    runUnderTrace("trace-parent") {
+      mono.block()
+    }
+
+    then:
+    assertTraces(1) {
+      trace(0, 3) {
+        span(0) {
+          resourceName "trace-parent"
+          operationName "trace-parent"
+          parent()
+        }
+        span(1) {
+          operationName "addOne"
+          childOf span(0)
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+
+        span(2) {
+          operationName "addTwo"
+          childOf span(0)
+          tags {
+            "$Tags.COMPONENT" "trace"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "Publisher chain spans have the correct parents from subscription time '#name'"() {
+    when:
+    assemblePublisherUnderTrace {
+      // The "add one" operations in the publisher created here should be children of the publisher-parent
       Publisher<Integer> publisher = publisherSupplier()
 
       AgentSpan intermediate = startSpan("intermediate")
-      // After this activation, all additions to the assembly are children of this span
       AgentScope scope = activateSpan(intermediate)
       try {
         if (publisher instanceof Mono) {
-          return ((Mono) publisher).map(addOne)
+          return ((Mono) publisher).map(addTwo)
         } else if (publisher instanceof Flux) {
-          return ((Flux) publisher).map(addOne)
+          return ((Flux) publisher).map(addTwo)
         }
         throw new IllegalStateException("Unknown publisher type")
       } finally {
-        scope.close()
         intermediate.finish()
+        scope.close()
       }
     }
 
     then:
     assertTraces(1) {
-      sortSpansByStart()
-      trace((workItems * 2) + 3) {
-        span {
+      trace(0, (workItems * 2) + 3) {
+        span(0) {
           resourceName "trace-parent"
           operationName "trace-parent"
           parent()
@@ -282,84 +317,21 @@ class ReactorCoreTest extends AgentTestRunner {
           }
         }
 
-        basicSpan(it, "publisher-parent", "publisher-parent", span(0))
-        basicSpan(it, "intermediate", "intermediate", span(1))
+        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+        basicSpan(it, 2, "intermediate", span(1))
 
-        for (int i = 0; i < workItems * 2; i++) {
-          span {
-            resourceName "addOne"
+        for (int i = 0; i < 2 * workItems; i = i + 2) {
+          span(3 + i) {
             operationName "addOne"
-            childOf(span(i % 2 == 0 ? 1 : 2))
+            childOf span(1)
             tags {
               "$Tags.COMPONENT" "trace"
               defaultTags()
             }
           }
-        }
-      }
-    }
-
-    where:
-    name         | workItems | publisherSupplier
-    "basic mono" | 1         | { -> Mono.just(1).map(addOne) }
-    "basic flux" | 2         | { -> Flux.fromIterable([1, 2]).map(addOne) }
-  }
-
-  def "Publisher chain spans can have the parent removed at assembly time '#name'"() {
-    when:
-    runUnderTrace {
-      // The operations in the publisher created here all end up children of the publisher-parent
-      Publisher<Integer> publisher = publisherSupplier()
-
-      // After this activation, all additions to the assembly will create new traces
-      AgentScope scope = activateSpan(noopSpan())
-      try {
-        if (publisher instanceof Mono) {
-          return ((Mono) publisher).map(addOne)
-        } else if (publisher instanceof Flux) {
-          return ((Flux) publisher).map(addOne)
-        }
-        throw new IllegalStateException("Unknown publisher type")
-      } finally {
-        scope.close()
-        scope.span().finish()
-      }
-    }
-
-    then:
-    assertTraces(1 + workItems) {
-      sortSpansByStart()
-      trace(2 + workItems) {
-        span {
-          resourceName "trace-parent"
-          operationName "trace-parent"
-          parent()
-          tags {
-            "$Tags.COMPONENT" "trace"
-            defaultTags()
-          }
-        }
-
-        basicSpan(it, "publisher-parent", "publisher-parent", span(0))
-
-        for (int i = 0; i < workItems; i++) {
-          span {
-            resourceName "addOne"
-            operationName "addOne"
-            childOf(span(1))
-            tags {
-              "$Tags.COMPONENT" "trace"
-              defaultTags()
-            }
-          }
-        }
-      }
-      for (int i = 0; i < workItems; i++) {
-        trace(1) {
-          span {
-            resourceName "addOne"
-            operationName "addOne"
-            parent()
+          span(3 + i + 1) {
+            operationName "addTwo"
+            childOf span(1)
             tags {
               "$Tags.COMPONENT" "trace"
               defaultTags()
@@ -376,14 +348,15 @@ class ReactorCoreTest extends AgentTestRunner {
   }
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
-  def runUnderTrace(def publisherSupplier) {
-    final AgentSpan span = startSpan("publisher-parent")
+  def assemblePublisherUnderTrace(def publisherSupplier) {
+    def span = startSpan("publisher-parent")
+    // After this activation, the "add two" operations below should be children of this span
+    def scope = activateSpan(span)
 
-    AgentScope scope = activateSpan(span)
+    Publisher<Integer> publisher = publisherSupplier()
     try {
       scope.setAsyncPropagation(true)
 
-      def publisher = publisherSupplier()
       // Read all data from publisher
       if (publisher instanceof Mono) {
         return publisher.block()
@@ -393,8 +366,8 @@ class ReactorCoreTest extends AgentTestRunner {
 
       throw new RuntimeException("Unknown publisher: " + publisher)
     } finally {
-      scope.close()
       span.finish()
+      scope.close()
     }
   }
 
@@ -427,5 +400,10 @@ class ReactorCoreTest extends AgentTestRunner {
   @Trace(operationName = "addOne", resourceName = "addOne")
   def static addOneFunc(int i) {
     return i + 1
+  }
+
+  @Trace(operationName = "addTwo", resourceName = "addTwo")
+  def static addTwoFunc(int i) {
+    return i + 2
   }
 }
