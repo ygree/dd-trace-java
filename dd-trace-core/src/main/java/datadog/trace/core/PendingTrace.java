@@ -49,7 +49,7 @@ public class PendingTrace implements AgentTrace {
     private final CoreTracer tracer;
     private final PendingTraceBuffer pendingTraceBuffer;
 
-    Factory(CoreTracer tracer, PendingTraceBuffer pendingTraceBuffer) {
+    Factory(final CoreTracer tracer, final PendingTraceBuffer pendingTraceBuffer) {
       this.tracer = tracer;
       this.pendingTraceBuffer = pendingTraceBuffer;
     }
@@ -128,7 +128,7 @@ public class PendingTrace implements AgentTrace {
   private volatile long lastReferenced = 0;
 
   private PendingTrace(
-      final CoreTracer tracer, final DDId traceId, PendingTraceBuffer pendingTraceBuffer) {
+    final CoreTracer tracer, final DDId traceId, final PendingTraceBuffer pendingTraceBuffer) {
     this.tracer = tracer;
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
@@ -148,7 +148,7 @@ public class PendingTrace implements AgentTrace {
    * @return timestamp in nanoseconds
    */
   public long getCurrentTimeNano() {
-    long nanoTicks = Clock.currentNanoTicks();
+    final long nanoTicks = Clock.currentNanoTicks();
     lastReferenced = nanoTicks;
     return startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
   }
@@ -157,9 +157,9 @@ public class PendingTrace implements AgentTrace {
     lastReferenced = Clock.currentNanoTicks();
   }
 
-  public boolean lastReferencedNanosAgo(long nanos) {
-    long currentNanoTicks = Clock.currentNanoTicks();
-    long age = currentNanoTicks - lastReferenced;
+  public boolean lastReferencedNanosAgo(final long nanos) {
+    final long currentNanoTicks = Clock.currentNanoTicks();
+    final long age = currentNanoTicks - lastReferenced;
     return nanos < age;
   }
 
@@ -238,7 +238,7 @@ public class PendingTrace implements AgentTrace {
   /** @return Long.MAX_VALUE if no spans finished. */
   long oldestFinishedTime() {
     long oldest = Long.MAX_VALUE;
-    for (DDSpan span : finishedSpans) {
+    for (final DDSpan span : finishedSpans) {
       oldest = Math.min(oldest, span.getStartTime() + span.getDurationNano());
     }
     return oldest;
@@ -276,7 +276,7 @@ public class PendingTrace implements AgentTrace {
     }
   }
 
-  private void expireReference(boolean isRootSpan) {
+  private void expireReference(final boolean isRootSpan) {
     if (!traceValid.get()) {
       return;
     }
@@ -290,7 +290,7 @@ public class PendingTrace implements AgentTrace {
         write();
       }
     } else {
-      int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
+      final int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
       if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
         // Trace is getting too big, write anything completed.
         partialFlush();
@@ -300,18 +300,28 @@ public class PendingTrace implements AgentTrace {
       }
     }
     if (log.isDebugEnabled()) {
+      final StringBuilder lines = new StringBuilder("");
+      for (final WeakReference<AgentScope.Continuation> continuation : weakContinuations) {
+        if (continuation.get() != null) {
+          lines
+              .append("\n")
+              .append(" --- reference remaining continuations=")
+              .append(continuation.get().toString());
+        }
+      }
       log.debug(
-          "t_id={} -> expired reference. count={} spans={} continuations={}",
+          "t_id={} -> expired reference. count={} spans={} continuations={} {}",
           traceId,
           count,
           weakSpans.size(),
-          weakContinuations.size());
+          weakContinuations.size(),
+          lines.toString());
     }
   }
 
   /** Important to note: may be called multiple times. */
   private void partialFlush() {
-    int size = write(false);
+    final int size = write(false);
     if (log.isDebugEnabled()) {
       log.debug("Writing partial trace {} of size {}", traceId, size);
     }
@@ -320,19 +330,19 @@ public class PendingTrace implements AgentTrace {
   /** Important to note: may be called multiple times. */
   void write() {
     rootSpanWritten.set(true);
-    int size = write(false);
+    final int size = write(false);
     if (log.isDebugEnabled()) {
       log.debug("Writing {} spans to {}.", size, tracer.writer);
     }
   }
 
-  private int write(boolean isPartial) {
+  private int write(final boolean isPartial) {
     if (!finishedSpans.isEmpty()) {
-      try (Recording recording = tracer.writeTimer()) {
+      try (final Recording recording = tracer.writeTimer()) {
         synchronized (this) {
-          int size = size();
+          final int size = size();
           if (!isPartial || size > tracer.getPartialFlushMinSpans()) {
-            List<DDSpan> trace = new ArrayList<>(size);
+            final List<DDSpan> trace = new ArrayList<>(size);
 
             final Iterator<DDSpan> it = finishedSpans.iterator();
             while (it.hasNext()) {
@@ -365,7 +375,7 @@ public class PendingTrace implements AgentTrace {
     count = 0;
     while ((ref = spanReferenceQueue.poll()) != null) {
       weakSpans.remove(ref);
-      if (this.traceValid.compareAndSet(true, false)) {
+      if (traceValid.compareAndSet(true, false)) {
         // preserve throughput count.
         // Don't report the trace because the data comes from buggy uses of the api and is suspect.
         tracer.incrementTraceCount();

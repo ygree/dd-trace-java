@@ -22,11 +22,6 @@ public class TracingOperator {
     Hooks.onEachOperator(TracingSubscriber.class.getName(), tracingLift());
   }
 
-  /** Unregisters the hook registered by {@link #registerOnEachOperator()}. */
-  public static void resetOnEachOperator() {
-    Hooks.resetOnEachOperator(TracingSubscriber.class.getName());
-  }
-
   private static <T> Function<? super Publisher<T>, ? extends Publisher<T>> tracingLift() {
     return Operators.lift(new Lifter<>());
   }
@@ -38,7 +33,8 @@ public class TracingOperator {
     public CoreSubscriber<? super T> apply(
         final Scannable publisher, final CoreSubscriber<? super T> sub) {
       // if Flux/Mono #just, #empty, #error
-      if (publisher instanceof Fuseable.ScalarCallable) {
+      if (publisher instanceof Fuseable.ScalarCallable
+          || publisher.getClass().getName().startsWith("reactor.core.Scannable$Attr$")) {
         return sub;
       }
       return new TracingSubscriber<>(sub, sub.currentContext());

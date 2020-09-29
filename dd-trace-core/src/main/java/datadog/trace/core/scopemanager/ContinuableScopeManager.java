@@ -82,7 +82,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
   @Override
   public AgentScope activate(
-      final AgentSpan span, final ScopeSource source, boolean isAsyncPropagating) {
+    final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
     return activate(span, source, true, isAsyncPropagating);
   }
 
@@ -91,7 +91,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       final ScopeSource source,
       final boolean overrideAsyncPropagation,
       final boolean isAsyncPropagating) {
-    ScopeStack scopeStack = scopeStack();
+    final ScopeStack scopeStack = scopeStack();
 
     final ContinuableScope active = scopeStack.top();
     if (active != null && active.span.equals(span)) {
@@ -121,7 +121,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       final ScopeSource source,
       final boolean overrideAsyncPropagation,
       final boolean isAsyncPropagating) {
-    ContinuableScope active = inheritAsyncPropagation ? scopeStack().top() : null;
+    final ContinuableScope active = inheritAsyncPropagation ? scopeStack().top() : null;
     return handleSpan(
         active, continuation, span, source, overrideAsyncPropagation, isAsyncPropagating);
   }
@@ -134,7 +134,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       final boolean overrideAsyncPropagation,
       final boolean isAsyncPropagating) {
     // Inherit the async propagation from the active scope unless the a value is overridden
-    boolean asyncPropagation =
+    final boolean asyncPropagation =
         overrideAsyncPropagation
             ? isAsyncPropagating
             : active != null && active.isAsyncPropagating();
@@ -162,7 +162,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
   }
 
   protected ScopeStack scopeStack() {
-    return this.tlsScopeStack.get();
+    return tlsScopeStack.get();
   }
 
   private static final class ContinuableScope implements AgentScope {
@@ -189,7 +189,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
         final boolean isAsyncPropagating) {
       this.isAsyncPropagating = isAsyncPropagating;
       this.span = span;
-      this.event = scopeManager.scopeEventFactory.create(span.context());
+      event = scopeManager.scopeEventFactory.create(span.context());
       this.scopeManager = scopeManager;
       this.continuation = continuation;
       this.source = source;
@@ -292,7 +292,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       return capture(true);
     }
 
-    private ContinuableScopeManager.Continuation capture(boolean concurrent) {
+    private ContinuableScopeManager.Continuation capture(final boolean concurrent) {
       if (isAsyncPropagating()) {
         final ContinuableScopeManager.Continuation continuation;
         if (concurrent) {
@@ -385,11 +385,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
     final AgentTrace trace;
 
     public Continuation(
-        ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, ScopeSource source) {
+      final ContinuableScopeManager scopeManager, final AgentSpan spanUnderScope, final ScopeSource source) {
       this.scopeManager = scopeManager;
       this.spanUnderScope = spanUnderScope;
       this.source = source;
-      this.trace = spanUnderScope.context().getTrace();
+      trace = spanUnderScope.context().getTrace();
     }
 
     private Continuation register() {
@@ -502,7 +502,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     private boolean tryActivate() {
-      int current = count.incrementAndGet();
+      final int current = count.incrementAndGet();
       if (current < START) {
         count.decrementAndGet();
       }
@@ -556,8 +556,8 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public String toString() {
-      int c = count.get();
-      String s = c < BARRIER ? "CANCELED" : String.valueOf(c);
+      final int c = count.get();
+      final String s = c < BARRIER ? "CANCELED" : String.valueOf(c);
       return getClass().getSimpleName()
           + "@"
           + Integer.toHexString(hashCode())
