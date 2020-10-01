@@ -306,7 +306,7 @@ class ReactorCoreTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, (workItems * 2) + 3) {
+      trace(0) {
         span(0) {
           resourceName "trace-parent"
           operationName "trace-parent"
