@@ -25,9 +25,9 @@ class SubscriptionTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "Connection.query", span(0))
+      trace(2) {
+        basicSpan(it, "parent")
+        basicSpan(it, "Connection.query", span(0))
       }
     }
 

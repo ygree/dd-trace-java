@@ -8,6 +8,7 @@ import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import spock.lang.Shared
 
 import java.time.Duration
@@ -256,13 +257,13 @@ class ReactorCoreTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           resourceName "trace-parent"
           operationName "trace-parent"
           parent()
         }
-        span(1) {
+        span {
           operationName "addOne"
           childOf span(0)
           tags {
@@ -271,7 +272,7 @@ class ReactorCoreTest extends AgentTestRunner {
           }
         }
 
-        span(2) {
+        span {
           operationName "addTwo"
           childOf span(0)
           tags {
@@ -306,8 +307,8 @@ class ReactorCoreTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0) {
-        span(0) {
+      trace(3 + 2 * workItems) {
+        span {
           resourceName "trace-parent"
           operationName "trace-parent"
           parent()
@@ -317,11 +318,11 @@ class ReactorCoreTest extends AgentTestRunner {
           }
         }
 
-        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
-        basicSpan(it, 2, "intermediate", span(1))
+        basicSpan(it, "publisher-parent", "publisher-parent", span(0))
+        basicSpan(it, "intermediate", span(1))
 
         for (int i = 0; i < 2 * workItems; i = i + 2) {
-          span(3 + i) {
+          span {
             operationName "addOne"
             childOf span(1)
             tags {
@@ -329,7 +330,7 @@ class ReactorCoreTest extends AgentTestRunner {
               defaultTags()
             }
           }
-          span(3 + i + 1) {
+          span {
             operationName "addTwo"
             childOf span(1)
             tags {
@@ -345,6 +346,22 @@ class ReactorCoreTest extends AgentTestRunner {
     name         | workItems | publisherSupplier
     "basic mono" | 1         | { -> Mono.just(1).map(addOne) }
     "basic flux" | 2         | { -> Flux.fromIterable([1, 2]).map(addOne) }
+  }
+
+  def "Fluxes produce the right number of results"() {
+    when:
+    List<String> values = Flux.fromIterable(Arrays.asList(1, 2, 3, 4))
+      .parallel()
+      .runOn(Schedulers.parallel())
+      .flatMap({ num -> Mono.just(num.toString() + " on " + Thread.currentThread().getName()) })
+      .sequential()
+      .collectList()
+      .block()
+
+    System.out.println(values); System.out.println("Value Count = " + values.size())
+
+    then:
+    values.size() == 4
   }
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
