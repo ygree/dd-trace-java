@@ -258,6 +258,7 @@ class ReactorCoreTest extends AgentTestRunner {
     then:
     assertTraces(1) {
       trace(3) {
+        sortSpansByStart()
         span {
           resourceName "trace-parent"
           operationName "trace-parent"
@@ -308,6 +309,7 @@ class ReactorCoreTest extends AgentTestRunner {
     then:
     assertTraces(1) {
       trace(3 + 2 * workItems) {
+        sortSpansByStart()
         span {
           resourceName "trace-parent"
           operationName "trace-parent"
