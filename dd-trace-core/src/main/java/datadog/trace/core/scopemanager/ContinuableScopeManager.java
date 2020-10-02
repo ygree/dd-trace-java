@@ -82,7 +82,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
   @Override
   public AgentScope activate(
-    final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
+      final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
     return activate(span, source, true, isAsyncPropagating);
   }
 
@@ -385,7 +385,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
     final AgentTrace trace;
 
     public Continuation(
-      final ContinuableScopeManager scopeManager, final AgentSpan spanUnderScope, final ScopeSource source) {
+        final ContinuableScopeManager scopeManager,
+        final AgentSpan spanUnderScope,
+        final ScopeSource source) {
       this.scopeManager = scopeManager;
       this.spanUnderScope = spanUnderScope;
       this.source = source;
