@@ -138,7 +138,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span {
+        span(1) {
           if (annotatedMethod == null) {
             // Functional API
             resourceNameContains(SPRING_APP_CLASS_ANON_NESTED_CLASS_PREFIX, ".handle")
@@ -166,7 +166,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span {
+        span(2) {
           if (annotatedMethod == null) {
             // Functional API
             resourceName "SpringWebFluxTestApplication.tracedMethod"
