@@ -56,7 +56,7 @@ class ReactorNettyTest extends AgentTestRunner {
   }
 
   void clientSpan(TraceAssert trace, int index, Object parentSpan, String method = "GET", URI uri = server.address.resolve("/success"), Integer status = 200) {
-    trace.span() {
+    trace.span {
       if (parentSpan == null) {
         parent()
       } else {
