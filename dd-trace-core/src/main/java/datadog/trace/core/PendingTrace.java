@@ -5,6 +5,7 @@ import datadog.common.exec.AgentTaskScheduler.Task;
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
+import datadog.trace.context.TraceScope;
 import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.util.Clock;
 import java.lang.ref.Reference;
@@ -301,12 +302,13 @@ public class PendingTrace implements AgentTrace {
     }
     if (log.isDebugEnabled()) {
       final StringBuilder lines = new StringBuilder("");
-      for (final WeakReference<AgentScope.Continuation> continuation : weakContinuations) {
-        if (continuation.get() != null) {
+      for (final WeakReference<AgentScope.Continuation> continuationRef : weakContinuations) {
+        final TraceScope.Continuation continuation = continuationRef.get();
+        if (continuation != null) {
           lines
               .append("\n")
               .append(" --- reference remaining continuations=")
-              .append(continuation.get().toString());
+              .append(continuation.toString());
         }
       }
       log.debug(
