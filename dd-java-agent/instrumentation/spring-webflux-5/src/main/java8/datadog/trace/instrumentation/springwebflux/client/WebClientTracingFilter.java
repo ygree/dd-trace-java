@@ -53,6 +53,8 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
       } else {
         span = startSpan("http.request");
       }
+      DECORATE.afterStart(span);
+      DECORATE.onRequest(span, request);
       final ClientRequest.Builder builder = ClientRequest.from(request);
       try (final AgentScope ignored = activateSpan(span)) {
         next.exchange(builder.build())

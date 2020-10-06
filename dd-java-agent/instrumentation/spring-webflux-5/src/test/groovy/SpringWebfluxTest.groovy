@@ -120,7 +120,8 @@ class SpringWebfluxTest extends AgentTestRunner {
     response.code == 200
     response.body().string() == expectedResponseBody
     assertTraces(1) {
-      trace(0, 3) {
+      sortSpansByStart()
+      trace(3) {
         span(0) {
           resourceName "GET $urlPathWithVariables"
           operationName "netty.request"
@@ -222,8 +223,9 @@ class SpringWebfluxTest extends AgentTestRunner {
     then:
     response.code == 200
     response.body().string() == expectedResponseBody
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(3) {
         span(0) {
           resourceName "GET $urlPathWithVariables"
           operationName "netty.request"
