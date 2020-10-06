@@ -18,7 +18,6 @@ public class TracingSubscriber<T> implements CoreSubscriber<T> {
   private final Subscriber<? super T> subscriber;
   private final Context context;
   private final AgentSpan span;
-  private TraceScope.Continuation continuation;
 
   public TracingSubscriber(final Subscriber<? super T> subscriber, final Context context) {
     this(subscriber, context, AgentTracer.activeSpan());
@@ -33,43 +32,26 @@ public class TracingSubscriber<T> implements CoreSubscriber<T> {
 
   @Override
   public void onSubscribe(final Subscription subscription) {
-    if (span != null) {
-      try (final TraceScope scope = AgentTracer.activateSpan(span)) {
-        continuation = scope.capture();
-      }
-    }
-    log.debug(
-        "onSubscribe subscriber={} continuation={} subscription={}",
-        this,
-        continuation,
-        subscription);
+    log.debug("onSubscribe subscriber={} subscription={}", this, subscription);
     subscriber.onSubscribe(subscription);
   }
 
   @Override
   public void onNext(final T o) {
-    log.debug("onNext subscriber={} continuation={}", this, continuation);
+    log.debug("onNext subscriber={}", this);
     withActiveSpan(() -> subscriber.onNext(o));
   }
 
   @Override
   public void onError(final Throwable throwable) {
-    log.debug("onError subscriber={} continuation={}", this, continuation);
+    log.debug("onError subscriber={}", this);
     withActiveSpan(() -> subscriber.onError(throwable));
-    if (continuation != null) {
-      continuation.cancel();
-      continuation = null;
-    }
   }
 
   @Override
   public void onComplete() {
-    log.debug("onComplete subscriber={} continuation={}", this, continuation);
+    log.debug("onComplete subscriber={}", this);
     withActiveSpan(subscriber::onComplete);
-    if (continuation != null) {
-      continuation.cancel();
-      continuation = null;
-    }
   }
 
   @Override

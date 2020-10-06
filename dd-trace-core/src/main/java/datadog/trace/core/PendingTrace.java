@@ -128,7 +128,7 @@ public class PendingTrace implements AgentTrace {
   private volatile long lastReferenced = 0;
 
   private PendingTrace(
-    final CoreTracer tracer, final DDId traceId, final PendingTraceBuffer pendingTraceBuffer) {
+      final CoreTracer tracer, final DDId traceId, final PendingTraceBuffer pendingTraceBuffer) {
     this.tracer = tracer;
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
