@@ -23,11 +23,8 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
   public static void addFilter(final List<ExchangeFilterFunction> exchangeFilterFunctions) {
     // Since the builder where we instrument the build function can be reused, we need
     // to only add the filter once
-    for (final ExchangeFilterFunction filterFunction : exchangeFilterFunctions) {
-      if (filterFunction instanceof WebClientTracingFilter) {
-        return;
-      }
-    }
+    exchangeFilterFunctions.removeIf(
+        filterFunction -> filterFunction instanceof WebClientTracingFilter);
     exchangeFilterFunctions.add(0, new WebClientTracingFilter());
   }
 
@@ -56,7 +53,8 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       final ClientRequest.Builder builder = ClientRequest.from(request);
-      try (final AgentScope ignored = activateSpan(span)) {
+      try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         next.exchange(builder.build())
             .doOnCancel(
                 () -> {
