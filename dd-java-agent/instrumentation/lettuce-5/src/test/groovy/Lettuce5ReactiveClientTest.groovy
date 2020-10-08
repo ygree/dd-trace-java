@@ -9,6 +9,7 @@ import io.lettuce.core.api.reactive.RedisReactiveCommands
 import io.lettuce.core.api.sync.RedisCommands
 import reactor.core.scheduler.Schedulers
 import redis.embedded.RedisServer
+import spock.lang.Ignore
 import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
 
@@ -379,6 +380,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     }
   }
 
+  @Ignore
   def "async subscriber"() {
     when:
     runUnderTrace("test-parent") {
@@ -434,6 +436,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     }
   }
 
+  @Ignore
   def "async subscriber with specific thread pool"() {
     when:
     runUnderTrace("test-parent") {
