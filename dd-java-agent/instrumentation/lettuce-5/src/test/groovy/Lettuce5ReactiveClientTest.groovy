@@ -378,19 +378,19 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
       }
     }
   }
-  
+
   def "async subscriber"() {
     when:
     runUnderTrace("test-parent") {
       reactiveCommands.set("a", "1")
-        .then(reactiveCommands.get("a")) // The get here is ending up in another trace
+        .then(reactiveCommands.get("a")) // The get here is reported separately
         .subscribe()
     }
 
     then:
-    assertTraces(1) {
+    assertTraces(2) {
       sortSpansByStart()
-      trace(3) {
+      trace(2) {
         span {
           operationName "test-parent"
           resourceName "test-parent"
@@ -415,8 +415,9 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
+      }
+      trace(1) {
         span {
-          childOf(span(0))
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -438,15 +439,15 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     when:
     runUnderTrace("test-parent") {
       reactiveCommands.set("a", "1")
-        .then(reactiveCommands.get("a")) // The get here is ending up in another trace
+        .then(reactiveCommands.get("a")) // The get here is reported separately
         .subscribeOn(Schedulers.elastic())
         .subscribe()
     }
 
     then:
-    assertTraces(1) {
+    assertTraces(2) {
       sortSpansByStart()
-      trace(3) {
+      trace(2) {
         span {
           operationName "test-parent"
           resourceName "test-parent"
@@ -471,8 +472,9 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
+      }
+      trace(1) {
         span {
-          childOf(span(0))
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -490,3 +492,4 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     }
   }
 }
+
