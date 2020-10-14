@@ -70,10 +70,7 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
         "kotlinx.coroutines.scheduling.CoroutineScheduler",
         "org.eclipse.jetty.util.thread.QueuedThreadPool",
         "org.eclipse.jetty.util.thread.ReservedThreadExecutor",
-        "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
-        "play.api.libs.streams.Execution$trampoline$",
-        "scala.concurrent.Future$InternalCallbackExecutor$",
-        "scala.concurrent.impl.ExecutionContextImpl",
+        "org.glassfish.grizzly.threadpool.GrizzlyExecutorService"
       };
 
       final Set<String> executors = new HashSet<>(Config.get().getTraceExecutors());
